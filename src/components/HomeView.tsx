@@ -252,7 +252,7 @@ export default function HomeView({ initialServices }: HomeViewProps) {
               padding: "10px 12px 10px 38px",
               borderRadius: 10,
               border: "1.5px solid #e5e7eb",
-              fontSize: 14,
+              fontSize: 16,
               fontFamily: "inherit",
               boxSizing: "border-box",
               background: "#f9fafb",
@@ -416,7 +416,7 @@ export default function HomeView({ initialServices }: HomeViewProps) {
                   background: "none",
                   border: "none",
                   borderBottom: `2px solid ${viewMode === mode ? "#111827" : "transparent"}`,
-                  fontSize: 14,
+                  fontSize: 16,
                   fontWeight: viewMode === mode ? 600 : 400,
                   color: viewMode === mode ? "#111827" : "#9ca3af",
                   cursor: "pointer",
@@ -460,7 +460,7 @@ export default function HomeView({ initialServices }: HomeViewProps) {
               </button>
             </div>
             <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 12px" }}>
-              {filtered.length} servicio{filtered.length !== 1 ? "s" : ""}
+              {filtered.length} local{filtered.length !== 1 ? "es" : ""}
               {supplySearch && ` con "${supplySearch}"`}
               {cityFilter && ` en ${cityFilter}`}
             </p>
@@ -560,7 +560,7 @@ export default function HomeView({ initialServices }: HomeViewProps) {
                   margin: "12px 0 12px",
                 }}
               >
-                {filtered.length} servicio{filtered.length !== 1 ? "s" : ""}
+                {filtered.length} local{filtered.length !== 1 ? "es" : ""}
                 {supplySearch && ` con "${supplySearch}"`}
                 {cityFilter && ` en ${cityFilter}`}
               </p>

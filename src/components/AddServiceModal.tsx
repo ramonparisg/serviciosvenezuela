@@ -355,7 +355,7 @@ export default function AddServiceModal({
                       borderRadius: 12,
                       border: "1.5px solid #e5e7eb",
                       background: "white",
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: 500,
                       color: "#374151",
                       cursor: "pointer",

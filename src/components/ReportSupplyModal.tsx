@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { ServiceWithSupplies, Supply } from "@/types";
 import { categoryConfig } from "@/lib/category-config";
 
@@ -31,7 +31,6 @@ export default function ReportSupplyModal({
   const [search, setSearch] = useState("");
   const [selections, setSelections] = useState<SupplySelection[]>([]);
   const [modalStatus, setModalStatus] = useState<ModalStatus>("idle");
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const config = categoryConfig[service.category];
 
@@ -173,13 +172,22 @@ export default function ReportSupplyModal({
       >
         <div
           style={{
-            width: 36,
-            height: 4,
-            background: "#e5e7eb",
-            borderRadius: 99,
-            margin: "0 auto 20px",
+            display: "flex",
+            justifyContent: "flex-end",
           }}
-        />
+        >
+          <button
+            style={{
+              border: "none",
+              background: "none",
+              fontSize: 32,
+              cursor: "pointer",
+            }}
+            onClick={onClose}
+          >
+            ×
+          </button>
+        </div>
 
         {modalStatus === "success" ? (
           <div style={{ textAlign: "center", padding: "24px 0" }}>
@@ -214,7 +222,6 @@ export default function ReportSupplyModal({
             {/* Buscador */}
             <div style={{ position: "relative", marginBottom: 8 }}>
               <input
-                ref={inputRef}
                 type="text"
                 placeholder="Buscar o escribir un insumo..."
                 value={search}
