@@ -130,6 +130,23 @@ export default function HomeView({ initialServices }: HomeViewProps) {
     setReporting(service);
   }, []);
 
+  // Cambiar vista y, si se selecciona la vista mapa en mobile, hacer scroll
+  // hacia abajo para que el mapa quede visible por completo.
+  function handleChangeViewMode(mode: ViewMode) {
+    setViewMode(mode);
+    if (mode === "map") {
+      // Esperar un pequeño delay para que el DOM actualice y el mapa se monte,
+      // luego hacer scroll al fondo de la página de forma suavizada.
+      setTimeout(() => {
+        try {
+          window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+        } catch (e) {
+          // En ambientes sin window no hacemos nada
+        }
+      }, 120);
+    }
+  }
+
   const handleReportSuccess = useCallback(
     (
       serviceId: string,
@@ -343,7 +360,7 @@ export default function HomeView({ initialServices }: HomeViewProps) {
             {(["list", "map"] as const).map((mode) => (
               <button
                 key={mode}
-                onClick={() => setViewMode(mode)}
+                onClick={() => handleChangeViewMode(mode)}
                 style={{
                   flex: 1,
                   padding: "10px 0",
@@ -445,7 +462,7 @@ export default function HomeView({ initialServices }: HomeViewProps) {
             <Map
               ref={mapRef}
               services={filtered}
-              onSelectService={(service) => {
+              onRequestReport={(service) => {
                 const full = services.find((sv) => sv.id === service.id);
                 if (full) setReporting(full);
               }}
@@ -525,7 +542,7 @@ export default function HomeView({ initialServices }: HomeViewProps) {
               <Map
                 ref={mapRef}
                 services={filtered}
-                onSelectService={(s) => {
+                onRequestReport={(s) => {
                   const full = services.find((sv) => sv.id === s.id);
                   if (full) setReporting(full);
                 }}
