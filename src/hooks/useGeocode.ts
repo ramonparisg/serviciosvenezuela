@@ -50,5 +50,10 @@ export function useGeocode() {
     setResult(null);
   }
 
-  return { status, result, geocode, reset };
+  function setManualResult(lat: number, lng: number, display_name: string) {
+    setResult({ lat, lng, display_name });
+    setStatus("found");
+  }
+
+  return { status, result, geocode, reset, setManualResult };
 }

@@ -5,6 +5,7 @@ import { categoryConfig } from "@/lib/category-config";
 import { VENEZUELA_STATES } from "@/lib/venezuela-states";
 import { Category } from "@/types";
 import { useGeocode } from "@/hooks/useGeocode";
+import PlaceSearch from "./PlaceSearch";
 
 interface AddServiceModalProps {
   onClose: () => void;
@@ -35,6 +36,7 @@ export default function AddServiceModal({
     result: geoResult,
     geocode,
     reset: resetGeo,
+    setManualResult,
   } = useGeocode();
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -99,6 +101,50 @@ export default function AddServiceModal({
       setFormStatus("error");
     }
   }
+
+  const handlePlaceSelected = (place: google.maps.places.PlaceResult) => {
+    const name = place.name || "";
+    const address = place.formatted_address || "";
+    const lat = place.geometry?.location?.lat();
+    const lng = place.geometry?.location?.lng();
+
+    // Extract city and state from address_components
+    let city = "";
+    let state = "";
+
+    place.address_components?.forEach((component) => {
+      const types = component.types;
+      if (types.includes("locality")) {
+        city = component.long_name;
+      } else if (types.includes("administrative_area_level_1")) {
+        state = component.long_name;
+      }
+    });
+
+    // Try to match category
+    let category: Category | "" = "";
+    const placeTypes = place.types || [];
+    if (placeTypes.includes("hospital") || placeTypes.includes("health")) {
+      category = "hospital";
+    } else if (placeTypes.includes("pharmacy") || placeTypes.includes("drugstore")) {
+      category = "pharmacy";
+    } else if (placeTypes.includes("gas_station")) {
+      category = "gas";
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      name: name || prev.name,
+      address: address || prev.address,
+      city: city || prev.city,
+      state: VENEZUELA_STATES.includes(state as any) ? state : prev.state,
+      category: category || prev.category,
+    }));
+
+    if (lat && lng) {
+      setManualResult(lat, lng, address);
+    }
+  };
 
   const inputStyle = {
     width: "100%",
@@ -168,6 +214,17 @@ export default function AddServiceModal({
           </div>
         ) : (
           <>
+            {/* Buscador de Google Maps */}
+            <PlaceSearch onPlaceSelected={handlePlaceSelected} />
+
+            <div
+              style={{
+                height: "1px",
+                background: "#e5e7eb",
+                margin: "20px 0",
+              }}
+            />
+
             {/* Categoría */}
             <div style={{ marginBottom: 14 }}>
               <label style={labelStyle}>Categoría *</label>
