@@ -142,16 +142,16 @@ export default function HomeView({ initialServices }: HomeViewProps) {
     if (mode === "map") {
       // Esperar un pequeño delay para que el DOM actualice y el mapa se monte,
       // luego hacer scroll al fondo de la página de forma suavizada.
-      setTimeout(() => {
-        try {
-          window.scrollTo({
-            top: document.body.scrollHeight,
-            behavior: "smooth",
-          });
-        } catch (e) {
-          // En ambientes sin window no hacemos nada
-        }
-      }, 120);
+      // setTimeout(() => {
+      //   try {
+      //     window.scrollTo({
+      //       top: document.body.scrollHeight,
+      //       behavior: "smooth",
+      //     });
+      //   } catch (e) {
+      //     // En ambientes sin window no hacemos nada
+      //   }
+      // }, 120);
     }
   }
 
@@ -284,9 +284,11 @@ export default function HomeView({ initialServices }: HomeViewProps) {
             display: "flex",
             gap: 8,
             marginBottom: 12,
-            overflowX: "clip",
-            scrollbarWidth: "none",
             alignItems: "center",
+            // BLINDAJE DEL PADRE:
+            width: "100%",
+            maxWidth: "100%", // Impide que este bloque estire la pantalla hacia la derecha
+            boxSizing: "border-box", // Asegura que los paddings no sumen ancho extra
           }}
         >
           {/* Filtro ciudad */}
@@ -295,47 +297,64 @@ export default function HomeView({ initialServices }: HomeViewProps) {
             value={cityFilter}
             onChange={setCityFilter}
           />
-          {/* Filtros categoría */}
-          {isDesktop && (
-            <p
-              style={{
-                fontSize: 13,
-                color: "#6b7280",
-                margin: 0, // quitar margin-bottom que desalineaba verticalmente
-                lineHeight: 1.5,
-                borderLeft: "1px solid #e5e7eb",
-                alignSelf: "center", // asegurar centrado vertical dentro del flex container
-                paddingLeft: 8, // un poco de separación desde la línea
-              }}
-            >
-              Filtros por categoría:
-            </p>
-          )}
 
-          {(Object.keys(categoryConfig) as Category[]).map((cat) => {
-            const isActive = categoryFilter === cat;
-            const { emoji, color } = categoryConfig[cat];
-            return (
-              <button
-                key={cat}
-                onClick={() => setCategoryFilter(isActive ? "" : cat)}
+          {/* Sub-contenedor de categorías */}
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              overflowX: "auto",
+              scrollbarWidth: "none",
+              alignItems: "center",
+              // ULTRA-COLAPSO DE FLEXBOX:
+              flex: "1 1 0%", // Fuerza a que la base del cálculo flex sea 0%
+              width: 0, // Truco definitivo: obliga al contenedor a medir 0 y crecer SOLO lo que el padre le permita
+              minWidth: 0,
+            }}
+          >
+            {/* Filtros categoría */}
+            {isDesktop && (
+              <p
                 style={{
-                  flexShrink: 0,
-                  padding: "7px 12px",
-                  borderRadius: 8,
-                  border: `1.5px solid ${isActive ? color : "#e5e7eb"}`,
-                  background: isActive ? color : "white",
-                  color: isActive ? "white" : "#374151",
                   fontSize: 13,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
+                  color: "#6b7280",
+                  margin: 0,
+                  lineHeight: 1.5,
+                  borderLeft: "1px solid #e5e7eb",
+                  alignSelf: "center",
+                  paddingLeft: 8,
+                  whiteSpace: "nowrap", // Evita que el texto se rompa en dos líneas
                 }}
               >
-                {emoji}
-              </button>
-            );
-          })}
+                Filtros por categoría:
+              </p>
+            )}
+
+            {(Object.keys(categoryConfig) as Category[]).map((cat) => {
+              const isActive = categoryFilter === cat;
+              const { emoji, color } = categoryConfig[cat];
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setCategoryFilter(isActive ? "" : cat)}
+                  style={{
+                    flexShrink: 0,
+                    padding: "7px 12px",
+                    borderRadius: 8,
+                    border: `1.5px solid ${isActive ? color : "#e5e7eb"}`,
+                    background: isActive ? color : "white",
+                    color: isActive ? "white" : "#374151",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {emoji}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Disclaimer */}
@@ -380,8 +399,7 @@ export default function HomeView({ initialServices }: HomeViewProps) {
             }}
           >
             ⚠️ El listado de locales fue extraído de datos públicos. Podría
-            haber errores o inexactitudes. En caso de visualizar una, puedes
-            reportarla usando el botón de "Reportar" en cada local.
+            haber errores o inexactitudes.
           </p>
         </div>
 
@@ -413,7 +431,7 @@ export default function HomeView({ initialServices }: HomeViewProps) {
 
       {/* Contenido */}
       {isDesktop ? (
-        // Layout desktop — dos columnas
+        // Layout desktop
         <div style={{ display: "flex", height: "calc(100dvh - 160px)" }}>
           {/* Columna izquierda — listado */}
           <div
@@ -515,11 +533,33 @@ export default function HomeView({ initialServices }: HomeViewProps) {
           </div>
         </div>
       ) : (
-        // Layout mobile — igual que antes
+        // Layout mobile
         <>
           {viewMode === "list" ? (
-            <div style={{ padding: "16px 16px 0" }}>
-              <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 12px" }}>
+            <div style={{ padding: "8px 16px 0", overflowX: "hidden" }}>
+              <div style={{ textAlign: "center", padding: "4px 0" }}>
+                <button
+                  onClick={() => setShowMissing(true)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    fontSize: 13,
+                    color: "#6b7280",
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                  }}
+                >
+                  ¿Falta un local en el directorio? Agrégalo acá
+                </button>
+              </div>
+
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "#6b7280",
+                  margin: "12px 0 12px",
+                }}
+              >
                 {filtered.length} servicio{filtered.length !== 1 ? "s" : ""}
                 {supplySearch && ` con "${supplySearch}"`}
                 {cityFilter && ` en ${cityFilter}`}
