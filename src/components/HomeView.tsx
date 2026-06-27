@@ -73,7 +73,12 @@ export default function HomeView({ initialServices }: HomeViewProps) {
         });
         const data = await res.json();
         if (cancelled) return;
-        if (data && data.found && typeof data.lat === "number" && typeof data.lng === "number") {
+        if (
+          data &&
+          data.found &&
+          typeof data.lat === "number" &&
+          typeof data.lng === "number"
+        ) {
           // Mantener zoom en 13 al hacer flyTo por selección de ciudad
           mapRef.current?.flyTo(data.lat, data.lng, 13);
         }
@@ -139,7 +144,10 @@ export default function HomeView({ initialServices }: HomeViewProps) {
       // luego hacer scroll al fondo de la página de forma suavizada.
       setTimeout(() => {
         try {
-          window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+          window.scrollTo({
+            top: document.body.scrollHeight,
+            behavior: "smooth",
+          });
         } catch (e) {
           // En ambientes sin window no hacemos nada
         }

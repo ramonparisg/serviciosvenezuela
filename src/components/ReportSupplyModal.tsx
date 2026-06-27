@@ -64,7 +64,6 @@ export default function ReportSupplyModal({
   function addSelection(supply: Supply, status: "available" | "unavailable") {
     setSelections((prev) => [...prev, { supply, status }]);
     setSearch("");
-    inputRef.current?.focus();
   }
 
   function removeSelection(supplyId: string) {

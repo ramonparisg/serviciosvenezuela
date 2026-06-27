@@ -23,7 +23,9 @@ export async function getServices(
       )
     `,
     )
-    .order("name");
+    .eq("enabled", true)
+    .neq("category", "water")
+    .order("city, name");
 
   if (filters.category) query = query.eq("category", filters.category);
   if (filters.city) query = query.ilike("city", `%${filters.city}%`);
