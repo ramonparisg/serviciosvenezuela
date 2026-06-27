@@ -5,6 +5,8 @@ import dynamic from "next/dynamic";
 import { Service, Category } from "@/types";
 import VerificationBar from "./VerificationBar";
 import { categoryConfig } from "@/lib/category-config";
+import ReportModal from "@/components/ReportModal";
+import AddServiceModal from "@/components/AddServiceModal";
 
 const Map = dynamic(() => import("./Map"), {
   ssr: false,
@@ -34,6 +36,10 @@ export default function MapView({ services }: MapViewProps) {
   const [activeCategories, setActiveCategories] = useState<Set<string>>(
     new Set(),
   );
+
+  const [reporting, setReporting] = useState<Service | null>(null);
+
+  const [addingService, setAddingService] = useState(false);
 
   const toggleCategory = (cat: string) => {
     setActiveCategories((prev) => {
@@ -94,6 +100,31 @@ export default function MapView({ services }: MapViewProps) {
           onSelectService={handleSelect}
           activeCategories={activeCategories}
         />
+
+        <button
+          onClick={() => setAddingService(true)}
+          style={{
+            position: "absolute",
+            bottom: 16,
+            right: 16,
+            zIndex: 999,
+            width: 52,
+            height: 52,
+            borderRadius: "50%",
+            background: "#111827",
+            color: "white",
+            border: "none",
+            fontSize: 26,
+            cursor: "pointer",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          aria-label="Agregar servicio"
+        >
+          +
+        </button>
       </div>
 
       {/* Drawer */}
@@ -194,6 +225,7 @@ export default function MapView({ services }: MapViewProps) {
               </a>
             )}
             <button
+              onClick={() => setReporting(selected)}
               style={{
                 flex: 1,
                 padding: "10px 0",
@@ -210,6 +242,19 @@ export default function MapView({ services }: MapViewProps) {
             </button>
           </div>
         </div>
+      )}
+      {reporting && (
+        <ReportModal service={reporting} onClose={() => setReporting(null)} />
+      )}
+      {addingService && (
+        <AddServiceModal
+          onClose={() => setAddingService(false)}
+          onSuccess={() => {
+            // El ISR actualizará el mapa en ~60 segundos
+            // Por ahora simplemente cerramos
+            setAddingService(false);
+          }}
+        />
       )}
     </div>
   );

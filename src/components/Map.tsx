@@ -43,8 +43,6 @@ export default function Map({
       L.tileLayer(
         "https://tile.jawg.io/jawg-light/{z}/{x}/{y}{r}.png?access-token={accessToken}",
         {
-          attribution:
-            '<a href="https://jawg.io" title="Tiles Courtesy of Jawg Maps" target="_blank">&copy; <b>Jawg</b>Maps</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
           minZoom: 0,
           maxZoom: 22,
           /* @ts-ignore*/
@@ -82,12 +80,18 @@ export default function Map({
       filtered.forEach((service) => {
         if (!service.lat || !service.lng) return;
 
-        const marker = L.marker(
-          [service.lat, service.lng],
-          { icon: createIcon(L, service.category) }, // ← pasar L aquí
-        );
+        const marker = L.marker([service.lat, service.lng], {
+          icon: createIcon(L, service.category),
+        });
 
-        marker.on("click", () => onSelectService(service));
+        marker.on("click", () => {
+          mapRef.current?.flyTo([service.lat, service.lng], 14, {
+            animate: true,
+            duration: 0.8,
+          });
+          onSelectService(service);
+        });
+
         marker.addTo(mapRef.current!);
       });
     };

@@ -22,7 +22,8 @@ export async function getServices(): Promise<Service[]> {
   }
 
   // Calcular conteos en JS — más claro y fácil de cambiar
-  let response = (data ?? []).map((service) => {
+
+  return (data ?? []).map((service) => {
     const recentReports = (service.reports ?? []).filter(
       (r: any) => r.created_at > sixHoursAgo,
     );
@@ -38,6 +39,4 @@ export async function getServices(): Promise<Service[]> {
       reports: undefined, // limpiar antes de pasar al componente
     };
   });
-  console.log("Servicios cargdos:", response);
-  return response;
 }
