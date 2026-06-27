@@ -1,35 +1,45 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import type { Map as LeafletMap } from "leaflet";
-import { Service } from "@/types";
 import { createIcon } from "@/lib/leaflet-icons";
 
+export interface MapHandle {
+  flyTo: (lat: number, lng: number) => void;
+}
+
 interface MapProps {
-  services: Service[];
-  onSelectService: (service: Service) => void;
+  services: any[];
+  onSelectService: (service: any) => void;
   activeCategories: Set<string>;
 }
 
-export default function Map({
-  services,
-  onSelectService,
-  activeCategories,
-}: MapProps) {
+const Map = forwardRef<MapHandle, MapProps>(function Map(
+  { services, onSelectService, activeCategories },
+  ref,
+) {
   const mapRef = useRef<LeafletMap | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [mapReady, setMapReady] = useState(false); // ← nuevo
+  const [mapReady, setMapReady] = useState(false);
+
+  useImperativeHandle(ref, () => ({
+    flyTo(lat: number, lng: number) {
+      mapRef.current?.flyTo([lat, lng], 16, { animate: true, duration: 0.8 });
+    },
+  }));
 
   useEffect(() => {
-    if (!containerRef.current) return;
-    if (mapRef.current) return; // ← separar en dos líneas, más claro
+    if (!containerRef.current || mapRef.current) return;
 
     const initMap = async () => {
       const L = (await import("leaflet")).default;
       await import("leaflet/dist/leaflet.css");
-
-      // Verificar de nuevo dentro del async por si el componente
-      // se desmontó mientras esperábamos el import
       if (!containerRef.current || mapRef.current) return;
 
       mapRef.current = L.map(containerRef.current, {
@@ -39,22 +49,15 @@ export default function Map({
       });
 
       L.control.zoom({ position: "topright" }).addTo(mapRef.current);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap",
+        maxZoom: 19,
+      }).addTo(mapRef.current);
 
-      L.tileLayer(
-        "https://tile.jawg.io/jawg-light/{z}/{x}/{y}{r}.png?access-token={accessToken}",
-        {
-          minZoom: 0,
-          maxZoom: 22,
-          /* @ts-ignore*/
-          accessToken: process.env.NEXT_PUBLIC_MAPS_API_KEY,
-        },
-      ).addTo(mapRef.current);
-
-      setMapReady(true); // ← avisar que el mapa está listo
+      setMapReady(true);
     };
 
     initMap();
-
     return () => {
       mapRef.current?.remove();
       mapRef.current = null;
@@ -62,13 +65,11 @@ export default function Map({
     };
   }, []);
 
-  // Actualizar markers cuando cambian servicios o filtros
   useEffect(() => {
     if (!mapReady || !mapRef.current) return;
 
     const loadMarkers = async () => {
       const L = (await import("leaflet")).default;
-
       mapRef.current!.eachLayer((layer) => {
         if (layer instanceof L.Marker) layer.remove();
       });
@@ -79,19 +80,16 @@ export default function Map({
 
       filtered.forEach((service) => {
         if (!service.lat || !service.lng) return;
-
         const marker = L.marker([service.lat, service.lng], {
           icon: createIcon(L, service.category),
         });
-
         marker.on("click", () => {
-          mapRef.current?.flyTo([service.lat, service.lng], 14, {
+          mapRef.current?.flyTo([service.lat, service.lng], 16, {
             animate: true,
             duration: 0.8,
           });
           onSelectService(service);
         });
-
         marker.addTo(mapRef.current!);
       });
     };
@@ -105,4 +103,6 @@ export default function Map({
       style={{ height: "100%", width: "100%", background: "#e8e0d8" }}
     />
   );
-}
+});
+
+export default Map;

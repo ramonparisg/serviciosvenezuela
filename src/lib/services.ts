@@ -10,7 +10,7 @@ export interface ServiceFilters {
 export async function getServices(
   filters: ServiceFilters = {},
 ): Promise<ServiceWithSupplies[]> {
-  const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+  const since = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(); // 3 días
 
   let query = supabase
     .from("services")
@@ -38,7 +38,7 @@ export async function getServices(
   // Procesar insumos por servicio
   const services: ServiceWithSupplies[] = (data ?? []).map((service) => {
     const recentReports = (service.supply_reports ?? []).filter(
-      (r: any) => r.created_at > sixHoursAgo && r.supply,
+      (r: any) => r.created_at > since && r.supply,
     );
 
     // Agrupar por insumo

@@ -120,20 +120,27 @@ export default function ServiceCard({
                   </div>
                   <div style={{ textAlign: "right" }}>
                     {pct !== null && (
-                      <span
-                        style={{
-                          fontSize: 11,
-                          color:
-                            pct >= 60
-                              ? "#15803d"
-                              : pct >= 40
-                                ? "#92400e"
-                                : "#991b1b",
-                          fontWeight: 500,
-                        }}
-                      >
-                        {pct}% confirman
-                      </span>
+                      <>
+                        <span
+                          style={{
+                            fontSize: 11,
+                            color:
+                              pct >= 60
+                                ? "#15803d"
+                                : pct >= 40
+                                  ? "#92400e"
+                                  : "#991b1b",
+                            fontWeight: 500,
+                            display: "block",
+                          }}
+                        >
+                          {pct}% confirman
+                        </span>
+                        <span style={{ fontSize: 11, color: "#9ca3af" }}>
+                          {sw.report_count}{" "}
+                          {sw.report_count === 1 ? "persona" : "personas"}
+                        </span>
+                      </>
                     )}
                     {sw.last_reported_at && (
                       <p
@@ -179,23 +186,41 @@ export default function ServiceCard({
         </div>
       )}
 
-      {/* Botón reportar */}
-      <button
-        onClick={() => onReport(service)}
-        style={{
-          width: "100%",
-          padding: "10px 0",
-          borderRadius: 10,
-          border: "1.5px solid #e5e7eb",
-          background: "white",
-          fontSize: 14,
-          fontWeight: 500,
-          color: "#374151",
-          cursor: "pointer",
-        }}
-      >
-        📋 Reportar insumo
-      </button>
+      <div style={{ display: "flex", gap: 8 }}>
+        <a
+          href={`/services/${service.id}`}
+          style={{
+            flex: 1,
+            padding: "10px 0",
+            borderRadius: 10,
+            border: "1.5px solid #e5e7eb",
+            background: "white",
+            fontSize: 14,
+            fontWeight: 500,
+            color: "#374151",
+            textDecoration: "none",
+            textAlign: "center",
+          }}
+        >
+          Ver detalle
+        </a>
+        <button
+          onClick={() => onReport(service)}
+          style={{
+            flex: 1,
+            padding: "10px 0",
+            borderRadius: 10,
+            border: "none",
+            background: "#111827",
+            fontSize: 14,
+            fontWeight: 500,
+            color: "white",
+            cursor: "pointer",
+          }}
+        >
+          📋 Reportar
+        </button>
+      </div>
     </div>
   );
 }

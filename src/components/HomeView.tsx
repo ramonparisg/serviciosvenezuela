@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Category, ServiceWithSupplies } from "@/types";
 import { categoryConfig } from "@/lib/category-config";
@@ -8,6 +8,9 @@ import ServiceCard from "./ServiceCard";
 import Footer from "./Footer";
 import ReportSupplyModal from "./ReportSupplyModal";
 import MissingServiceModal from "./MissingServiceModal";
+import CityFilter from "./CityFilter";
+import { MapHandle } from "@/components/Map";
+import { useViewport } from "@/hooks/useViewport";
 
 const Map = dynamic(() => import("./Map"), {
   ssr: false,
@@ -43,6 +46,16 @@ export default function HomeView({ initialServices }: HomeViewProps) {
   const [reporting, setReporting] = useState<ServiceWithSupplies | null>(null);
   const [showMissing, setShowMissing] = useState(false);
 
+  const { isDesktop } = useViewport();
+
+  const mapRef = useRef<MapHandle | null>(null);
+
+  function handleSelectOnMap(service: ServiceWithSupplies) {
+    if (service.lat && service.lng) {
+      mapRef.current?.flyTo(service.lat, service.lng);
+    }
+  }
+
   // Filtrado en cliente — rápido, sin llamadas al servidor
   const filtered = services
     .filter((s) => {
@@ -77,9 +90,6 @@ export default function HomeView({ initialServices }: HomeViewProps) {
       }
       return 0;
     });
-
-  // Ciudades únicas para el filtro
-  const cities = Array.from(new Set(services.map((s) => s.city))).sort();
 
   const handleReport = useCallback((service: ServiceWithSupplies) => {
     setReporting(service);
@@ -213,33 +223,16 @@ export default function HomeView({ initialServices }: HomeViewProps) {
             display: "flex",
             gap: 8,
             marginBottom: 12,
-            overflowX: "auto",
+            overflowX: "clip",
             scrollbarWidth: "none",
           }}
         >
           {/* Filtro ciudad */}
-          <select
+          <CityFilter
+            services={services}
             value={cityFilter}
-            onChange={(e) => setCityFilter(e.target.value)}
-            style={{
-              flexShrink: 0,
-              padding: "7px 10px",
-              borderRadius: 8,
-              border: "1.5px solid #e5e7eb",
-              fontSize: 13,
-              fontFamily: "inherit",
-              background: cityFilter ? "#111827" : "white",
-              color: cityFilter ? "white" : "#374151",
-              cursor: "pointer",
-            }}
-          >
-            <option value="">Todas las ciudades</option>
-            {cities.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+            onChange={setCityFilter}
+          />
 
           {/* Filtros categoría */}
           {(Object.keys(categoryConfig) as Category[]).map((cat) => {
@@ -268,101 +261,229 @@ export default function HomeView({ initialServices }: HomeViewProps) {
           })}
         </div>
 
-        {/* Toggle vista */}
-        <div style={{ display: "flex", marginBottom: -1 }}>
-          {(["list", "map"] as const).map((mode) => (
-            <button
-              key={mode}
-              onClick={() => setViewMode(mode)}
-              style={{
-                flex: 1,
-                padding: "10px 0",
-                background: "none",
-                border: "none",
-                borderBottom: `2px solid ${viewMode === mode ? "#111827" : "transparent"}`,
-                fontSize: 14,
-                fontWeight: viewMode === mode ? 600 : 400,
-                color: viewMode === mode ? "#111827" : "#9ca3af",
-                cursor: "pointer",
-              }}
-            >
-              {mode === "list" ? "☰ Lista" : "🗺 Mapa"}
-            </button>
-          ))}
+        {/* Disclaimer */}
+        <div
+          style={{
+            padding: "8px 12px",
+            background: "#f0f9ff",
+            borderLeft: "3px solid #38bdf8",
+            marginBottom: 12,
+            borderRadius: "0 6px 6px 0",
+          }}
+        >
+          <p
+            style={{
+              fontSize: 12,
+              color: "#0369a1",
+              margin: 0,
+              lineHeight: 1.5,
+            }}
+          >
+            📅 Los datos reflejan reportes de la comunidad de los{" "}
+            <strong>últimos 3 días</strong>. La información puede no estar
+            actualizada — verifica antes de desplazarte.
+          </p>
         </div>
+
+        {/* Toggle vista */}
+        {!isDesktop && (
+          <div style={{ display: "flex", marginBottom: -1 }}>
+            {(["list", "map"] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                style={{
+                  flex: 1,
+                  padding: "10px 0",
+                  background: "none",
+                  border: "none",
+                  borderBottom: `2px solid ${viewMode === mode ? "#111827" : "transparent"}`,
+                  fontSize: 14,
+                  fontWeight: viewMode === mode ? 600 : 400,
+                  color: viewMode === mode ? "#111827" : "#9ca3af",
+                  cursor: "pointer",
+                }}
+              >
+                {mode === "list" ? "☰ Lista" : "🗺 Mapa"}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Contenido */}
-      {viewMode === "list" ? (
-        <div style={{ padding: "16px 16px 0" }}>
-          {/* Contador */}
-          <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 12px" }}>
-            {filtered.length} servicio{filtered.length !== 1 ? "s" : ""}
-            {supplySearch && ` con "${supplySearch}"`}
-            {cityFilter && ` en ${cityFilter}`}
-          </p>
+      {isDesktop ? (
+        // Layout desktop — dos columnas
+        <div style={{ display: "flex", height: "calc(100dvh - 160px)" }}>
+          {/* Columna izquierda — listado */}
+          <div
+            style={{
+              width: "35%",
+              flexShrink: 0,
+              overflowY: "auto",
+              padding: "16px 16px 0",
+              borderRight: "1px solid #f0f0f0",
+              background: "#f9fafb",
+            }}
+          >
+            <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 12px" }}>
+              {filtered.length} servicio{filtered.length !== 1 ? "s" : ""}
+              {supplySearch && ` con "${supplySearch}"`}
+              {cityFilter && ` en ${cityFilter}`}
+            </p>
 
-          {/* Lista */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {filtered.length === 0 ? (
-              <div
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {filtered.length === 0 ? (
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "40px 20px",
+                    background: "white",
+                    borderRadius: 14,
+                  }}
+                >
+                  <p style={{ fontSize: 32, margin: "0 0 8px" }}>🔍</p>
+                  <p
+                    style={{ fontSize: 15, fontWeight: 500, margin: "0 0 4px" }}
+                  >
+                    Sin resultados
+                  </p>
+                  <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
+                    Prueba con otros filtros
+                  </p>
+                </div>
+              ) : (
+                filtered.map((service) => (
+                  <div
+                    key={service.id}
+                    onClick={() => handleSelectOnMap(service)}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <ServiceCard
+                      service={service}
+                      onReport={handleReport}
+                      highlightSupply={supplySearch}
+                    />
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div style={{ textAlign: "center", padding: "24px 0 8px" }}>
+              <button
+                onClick={() => setShowMissing(true)}
                 style={{
-                  textAlign: "center",
-                  padding: "40px 20px",
-                  background: "white",
-                  borderRadius: 14,
+                  background: "none",
+                  border: "none",
+                  fontSize: 13,
+                  color: "#6b7280",
+                  cursor: "pointer",
+                  textDecoration: "underline",
                 }}
               >
-                <p style={{ fontSize: 32, margin: "0 0 8px" }}>🔍</p>
-                <p style={{ fontSize: 15, fontWeight: 500, margin: "0 0 4px" }}>
-                  Sin resultados
-                </p>
-                <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
-                  Prueba con otros filtros o términos de búsqueda
-                </p>
-              </div>
-            ) : (
-              filtered.map((service) => (
-                <ServiceCard
-                  key={service.id}
-                  service={service}
-                  onReport={handleReport}
-                  highlightSupply={supplySearch}
-                />
-              ))
-            )}
+                ¿Falta un local en el directorio?
+              </button>
+            </div>
+
+            <Footer />
           </div>
 
-          {/* Botón local faltante */}
-          <div style={{ textAlign: "center", padding: "24px 0 8px" }}>
-            <button
-              onClick={() => setShowMissing(true)}
-              style={{
-                background: "none",
-                border: "none",
-                fontSize: 13,
-                color: "#6b7280",
-                cursor: "pointer",
-                textDecoration: "underline",
+          {/* Columna derecha — mapa siempre visible */}
+          <div style={{ flex: 1 }}>
+            <Map
+              ref={mapRef}
+              services={filtered}
+              onSelectService={(service) => {
+                const full = services.find((sv) => sv.id === service.id);
+                if (full) setReporting(full);
               }}
-            >
-              ¿Falta un local en el directorio?
-            </button>
+              activeCategories={new Set(categoryFilter ? [categoryFilter] : [])}
+            />
           </div>
-
-          <Footer />
         </div>
       ) : (
-        <div style={{ height: "calc(100dvh - 200px)" }}>
-          <Map
-            services={filtered}
-            onSelectService={(s) => {
-              const full = services.find((sv) => sv.id === s.id);
-              if (full) setReporting(full);
-            }}
-            activeCategories={new Set(categoryFilter ? [categoryFilter] : [])}
-          />
-        </div>
+        // Layout mobile — igual que antes
+        <>
+          {viewMode === "list" ? (
+            <div style={{ padding: "16px 16px 0" }}>
+              <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 12px" }}>
+                {filtered.length} servicio{filtered.length !== 1 ? "s" : ""}
+                {supplySearch && ` con "${supplySearch}"`}
+                {cityFilter && ` en ${cityFilter}`}
+              </p>
+
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: 12 }}
+              >
+                {filtered.length === 0 ? (
+                  <div
+                    style={{
+                      textAlign: "center",
+                      padding: "40px 20px",
+                      background: "white",
+                      borderRadius: 14,
+                    }}
+                  >
+                    <p style={{ fontSize: 32, margin: "0 0 8px" }}>🔍</p>
+                    <p
+                      style={{
+                        fontSize: 15,
+                        fontWeight: 500,
+                        margin: "0 0 4px",
+                      }}
+                    >
+                      Sin resultados
+                    </p>
+                    <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
+                      Prueba con otros filtros o términos de búsqueda
+                    </p>
+                  </div>
+                ) : (
+                  filtered.map((service) => (
+                    <ServiceCard
+                      key={service.id}
+                      service={service}
+                      onReport={handleReport}
+                      highlightSupply={supplySearch}
+                    />
+                  ))
+                )}
+              </div>
+
+              <div style={{ textAlign: "center", padding: "24px 0 8px" }}>
+                <button
+                  onClick={() => setShowMissing(true)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    fontSize: 13,
+                    color: "#6b7280",
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                  }}
+                >
+                  ¿Falta un local en el directorio?
+                </button>
+              </div>
+
+              <Footer />
+            </div>
+          ) : (
+            <div style={{ height: "calc(100dvh - 200px)" }}>
+              <Map
+                ref={mapRef}
+                services={filtered}
+                onSelectService={(s) => {
+                  const full = services.find((sv) => sv.id === s.id);
+                  if (full) setReporting(full);
+                }}
+                activeCategories={
+                  new Set(categoryFilter ? [categoryFilter] : [])
+                }
+              />
+            </div>
+          )}
+        </>
       )}
 
       {/* Modales */}
