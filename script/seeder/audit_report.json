@@ -1,0 +1,63 @@
+{
+  "total": 5357,
+  "verified": 1028,
+  "suspicious": 433,
+  "location_only": 616,
+  "skipped": 3280,
+  "unnamed_resolved": 194,
+  "unnamed_discarded": 3,
+  "byCategory": {
+    "hospital": {
+      "verified": 276,
+      "suspicious": 48,
+      "location_only": 172
+    },
+    "pharmacy": {
+      "verified": 350,
+      "suspicious": 174,
+      "location_only": 140
+    },
+    "gas": {
+      "verified": 191,
+      "suspicious": 21,
+      "location_only": 127
+    },
+    "supermarket": {
+      "verified": 131,
+      "suspicious": 134,
+      "location_only": 81
+    },
+    "abasto": {
+      "verified": 80,
+      "suspicious": 56,
+      "location_only": 96
+    }
+  },
+  "byCity": {
+    "Valencia": {
+      "verified": 164,
+      "suspicious": 52,
+      "location_only": 82
+    },
+    "Caracas": {
+      "verified": 523,
+      "suspicious": 277,
+      "location_only": 364
+    },
+    "Barquisimeto": {
+      "verified": 134,
+      "suspicious": 36,
+      "location_only": 43
+    },
+    "La Guaira": {
+      "verified": 54,
+      "suspicious": 20,
+      "location_only": 48
+    },
+    "Maracaibo": {
+      "verified": 153,
+      "suspicious": 48,
+      "location_only": 79
+    }
+  }
+}
