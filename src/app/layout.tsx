@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Servicios Venezuela",
+  title: "Mapa de Insumos - Venezuela",
   description: "Directorio de servicios activos en Venezuela",
 };
 

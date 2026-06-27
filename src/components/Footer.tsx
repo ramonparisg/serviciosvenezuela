@@ -17,7 +17,7 @@ export default function Footer() {
           textAlign: "center",
         }}
       >
-        🇻🇪 Servicios Venezuela
+        🇻🇪 Mapa de Insumos - Venezuela
       </p>
       <p
         style={{

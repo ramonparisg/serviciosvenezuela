@@ -215,7 +215,7 @@ export default function HomeView({ initialServices }: HomeViewProps) {
             color: "#111827",
           }}
         >
-          🇻🇪 Servicios Venezuela
+          🇻🇪 Mapa de Insumos - Venezuela
         </h1>
         <p
           style={{
@@ -225,8 +225,8 @@ export default function HomeView({ initialServices }: HomeViewProps) {
             lineHeight: 1.5,
           }}
         >
-          Directorio comunitario de servicios activos. Los reportes son de la
-          comunidad en tiempo real.
+          Mapa comunitario para conseguir insumos en Venezuela. Los reportes son
+          de la comunidad en tiempo real.
         </p>
 
         {/* Buscador */}
@@ -362,6 +362,29 @@ export default function HomeView({ initialServices }: HomeViewProps) {
           </p>
         </div>
 
+        <div
+          style={{
+            padding: "8px 12px",
+            background: "#fffcf0",
+            borderLeft: "3px solid #a18103",
+            marginBottom: 12,
+            borderRadius: "0 6px 6px 0",
+          }}
+        >
+          <p
+            style={{
+              fontSize: 12,
+              color: "#a18103",
+              margin: 0,
+              lineHeight: 1.5,
+            }}
+          >
+            ⚠️ El listado de locales fue extraído de datos públicos. Podría
+            haber errores o inexactitudes. En caso de visualizar una, puedes
+            reportarla usando el botón de "Reportar" en cada local.
+          </p>
+        </div>
+
         {/* Toggle vista */}
         {!isDesktop && (
           <div style={{ display: "flex", marginBottom: -1 }}>
@@ -403,6 +426,21 @@ export default function HomeView({ initialServices }: HomeViewProps) {
               background: "#f9fafb",
             }}
           >
+            <div style={{ textAlign: "center", padding: "4px 0" }}>
+              <button
+                onClick={() => setShowMissing(true)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  fontSize: 13,
+                  color: "#6b7280",
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                }}
+              >
+                ¿Falta un local en el directorio?
+              </button>
+            </div>
             <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 12px" }}>
               {filtered.length} servicio{filtered.length !== 1 ? "s" : ""}
               {supplySearch && ` con "${supplySearch}"`}
@@ -461,8 +499,6 @@ export default function HomeView({ initialServices }: HomeViewProps) {
                 ¿Falta un local en el directorio?
               </button>
             </div>
-
-            <Footer />
           </div>
 
           {/* Columna derecha — mapa siempre visible */}
@@ -526,24 +562,6 @@ export default function HomeView({ initialServices }: HomeViewProps) {
                   ))
                 )}
               </div>
-
-              <div style={{ textAlign: "center", padding: "24px 0 8px" }}>
-                <button
-                  onClick={() => setShowMissing(true)}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    fontSize: 13,
-                    color: "#6b7280",
-                    cursor: "pointer",
-                    textDecoration: "underline",
-                  }}
-                >
-                  ¿Falta un local en el directorio?
-                </button>
-              </div>
-
-              <Footer />
             </div>
           ) : (
             <div style={{ height: "calc(100dvh - 200px)" }}>
@@ -560,6 +578,7 @@ export default function HomeView({ initialServices }: HomeViewProps) {
               />
             </div>
           )}
+          <Footer />
         </>
       )}
 

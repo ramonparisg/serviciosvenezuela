@@ -1,13 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
 
-const VALID_CATEGORIES = [
-  "hospital",
-  "pharmacy",
-  "gas",
-  "water",
-  "supermarket",
-];
+const VALID_CATEGORIES = ["hospital", "pharmacy", "gas", "supermarket"];
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
