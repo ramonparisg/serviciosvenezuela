@@ -73,14 +73,7 @@ export default function ServiceDetail({
       return b.last_reported_at > a.last_reported_at ? 1 : -1;
     });
 
-  const googleMapsUrl =
-    service.lat && service.lng
-      ? `https://www.google.com/maps/search/?api=1&query=${service.lat},${service.lng}`
-      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${service.name} ${service.address} ${service.city}`)}`;
-
-  // Busy times embed — solo disponible si tiene place_id de Google
-  // Por ahora mostramos un link directo
-  const busyTimesUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(service.name + " " + service.city)}`;
+  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${service.name} ${service.address} ${service.city}`)}`;
 
   return (
     <div
@@ -178,25 +171,6 @@ export default function ServiceDetail({
             }}
           >
             🗺 Cómo llegar
-          </a>
-          <a
-            href={busyTimesUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              flex: 1,
-              padding: "12px 0",
-              borderRadius: 12,
-              border: "1.5px solid #e5e7eb",
-              background: "white",
-              textAlign: "center",
-              fontSize: 14,
-              fontWeight: 500,
-              color: "#111827",
-              textDecoration: "none",
-            }}
-          >
-            👥 Afluencia
           </a>
         </div>
 
