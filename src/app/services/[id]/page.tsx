@@ -2,7 +2,7 @@ import { supabase } from "@/lib/supabase";
 import ServiceDetail from "@/components/ServiceDetail";
 import { notFound } from "next/navigation";
 
-export const revalidate = 60;
+export const revalidate = 0;
 
 export default async function ServicePage({
   params,
