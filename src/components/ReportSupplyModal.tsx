@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { ServiceWithSupplies, Supply } from "@/types";
 import { categoryConfig } from "@/lib/category-config";
 
@@ -31,7 +31,6 @@ export default function ReportSupplyModal({
   const [search, setSearch] = useState("");
   const [selections, setSelections] = useState<SupplySelection[]>([]);
   const [modalStatus, setModalStatus] = useState<ModalStatus>("idle");
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const config = categoryConfig[service.category];
 
@@ -173,13 +172,22 @@ export default function ReportSupplyModal({
       >
         <div
           style={{
-            width: 36,
-            height: 4,
-            background: "#e5e7eb",
-            borderRadius: 99,
-            margin: "0 auto 20px",
+            display: "flex",
+            justifyContent: "flex-end",
           }}
-        />
+        >
+          <button
+            style={{
+              border: "none",
+              background: "none",
+              fontSize: 32,
+              cursor: "pointer",
+            }}
+            onClick={onClose}
+          >
+            ×
+          </button>
+        </div>
 
         {modalStatus === "success" ? (
           <div style={{ textAlign: "center", padding: "24px 0" }}>
@@ -214,7 +222,6 @@ export default function ReportSupplyModal({
             {/* Buscador */}
             <div style={{ position: "relative", marginBottom: 8 }}>
               <input
-                ref={inputRef}
                 type="text"
                 placeholder="Buscar o escribir un insumo..."
                 value={search}
@@ -232,31 +239,31 @@ export default function ReportSupplyModal({
             </div>
 
             {/* Sugerencias del buscador */}
-            {(search.length > 0 || allSupplies.length > 0) && (
-              <div
+            {loadingSupplies ? (
+              <p
                 style={{
-                  border: "1px solid #f0f0f0",
-                  borderRadius: 10,
-                  overflow: "hidden",
-                  marginBottom: 16,
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                  maxHeight: 240,
-                  overflowY: "auto",
+                  padding: "12px",
+                  fontSize: 13,
+                  color: "#9ca3af",
+                  margin: 0,
                 }}
               >
-                {loadingSupplies ? (
-                  <p
+                Cargando...
+              </p>
+            ) : (
+              <>
+                {(search.length > 0 || allSupplies.length > 0) && (
+                  <div
                     style={{
-                      padding: "12px",
-                      fontSize: 13,
-                      color: "#9ca3af",
-                      margin: 0,
+                      border: "1px solid #f0f0f0",
+                      borderRadius: 10,
+                      overflow: "hidden",
+                      marginBottom: 16,
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                      maxHeight: 240,
+                      overflowY: "auto",
                     }}
                   >
-                    Cargando...
-                  </p>
-                ) : (
-                  <>
                     {filtered.map((supply) => (
                       <div
                         key={supply.id}
@@ -319,7 +326,7 @@ export default function ReportSupplyModal({
                           background: "#fafafa",
                         }}
                       >
-                        <span style={{ fontSize: 14, color: "#6b7280" }}>
+                        <span style={{ fontSize: 16, color: "#6b7280" }}>
                           Agregar "{searchTrimmed}"
                         </span>
                         <div style={{ display: "flex", gap: 6 }}>
@@ -371,9 +378,9 @@ export default function ReportSupplyModal({
                         Sin resultados
                       </p>
                     )}
-                  </>
+                  </div>
                 )}
-              </div>
+              </>
             )}
 
             {/* Selecciones actuales */}

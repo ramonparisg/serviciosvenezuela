@@ -95,7 +95,7 @@ export default function ServiceDetail({
         }}
       >
         <button
-          onClick={() => router.back()}
+          onClick={() => router.push("/")}
           style={{
             background: "none",
             border: "none",

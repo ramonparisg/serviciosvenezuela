@@ -33,12 +33,24 @@ const Map = dynamic(() => import("./Map"), {
 
 interface HomeViewProps {
   initialServices: ServiceWithSupplies[];
+  initialTotal: number;
+  initialHasMore: boolean;
 }
 
 type ViewMode = "list" | "map";
 
-export default function HomeView({ initialServices }: HomeViewProps) {
+export default function HomeView({
+  initialServices,
+  initialTotal,
+  initialHasMore,
+}: HomeViewProps) {
   const [services, setServices] = useState(initialServices);
+  const [total, setTotal] = useState(initialTotal);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [page, setPage] = useState(0);
+  const [fetching, setFetching] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const supplyDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [cityFilter, setCityFilter] = useState("");
@@ -96,40 +108,81 @@ export default function HomeView({ initialServices }: HomeViewProps) {
     };
   }, [cityFilter]);
 
-  // Filtrado en cliente — rápido, sin llamadas al servidor
-  const filtered = services
-    .filter((s) => {
-      if (categoryFilter && s.category !== categoryFilter) return false;
-      if (
-        cityFilter &&
-        !s.city.toLowerCase().includes(cityFilter.toLowerCase())
-      )
-        return false;
-      if (supplySearch) {
-        return s.supplies.some((sw) =>
-          sw.supply.name.toLowerCase().includes(supplySearch.toLowerCase()),
-        );
+  const [mapServices, setMapServices] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (viewMode !== "map" && !isDesktop) return;
+    fetch("/api/services/map")
+      .then((r) => r.json())
+      .then(setMapServices);
+  }, [viewMode, isDesktop]);
+  // Función central de fetch
+  async function fetchServices(
+    overrides: {
+      category?: string;
+      city?: string;
+      supply?: string;
+      page?: number;
+      append?: boolean;
+    } = {},
+  ) {
+    const isAppend = overrides.append ?? false;
+    if (isAppend) setLoadingMore(true);
+    else setFetching(true);
+
+    const p = overrides.page ?? 0;
+    const q = new URLSearchParams();
+    const cat = overrides.category ?? categoryFilter;
+    const cty = overrides.city ?? cityFilter;
+    const sup = overrides.supply ?? supplySearch;
+
+    if (cat) q.set("category", cat);
+    if (cty) q.set("city", cty);
+    if (sup) q.set("supply", sup);
+    q.set("page", String(p));
+
+    try {
+      const res = await fetch(`/api/services?${q}`);
+      const data = await res.json();
+
+      if (isAppend) {
+        setServices((prev) => [...prev, ...data.services]);
+      } else {
+        setServices(data.services);
+        setPage(0);
       }
-      return true;
-    })
-    .sort((a, b) => {
-      // Si hay búsqueda de insumo, ordenar por disponibilidad de ese insumo
-      if (supplySearch) {
-        const term = supplySearch.toLowerCase();
-        const aAvailable = a.supplies.filter(
-          (sw) =>
-            sw.supply.name.toLowerCase().includes(term) &&
-            sw.latest_status === "available",
-        ).length;
-        const bAvailable = b.supplies.filter(
-          (sw) =>
-            sw.supply.name.toLowerCase().includes(term) &&
-            sw.latest_status === "available",
-        ).length;
-        return bAvailable - aAvailable;
-      }
-      return 0;
-    });
+      setTotal(data.total);
+      setHasMore(data.hasMore);
+    } finally {
+      setFetching(false);
+      setLoadingMore(false);
+    }
+  }
+
+  // Handlers que actualizan estado Y fetchean
+  function handleCategoryChange(cat: string) {
+    setCategoryFilter(cat);
+    fetchServices({ category: cat });
+  }
+
+  function handleCityChange(city: string) {
+    setCityFilter(city);
+    fetchServices({ city });
+  }
+
+  function handleSupplySearch(value: string) {
+    setSupplySearch(value);
+    if (supplyDebounce.current) clearTimeout(supplyDebounce.current);
+    supplyDebounce.current = setTimeout(() => {
+      fetchServices({ supply: value });
+    }, 500);
+  }
+
+  async function handleLoadMore() {
+    const next = page + 1;
+    setPage(next);
+    await fetchServices({ page: next, append: true });
+  }
 
   const handleReport = useCallback((service: ServiceWithSupplies) => {
     setReporting(service);
@@ -246,13 +299,13 @@ export default function HomeView({ initialServices }: HomeViewProps) {
             type="text"
             placeholder='Buscar insumo... ej: "Pañales", "Insulina", "Gasolina 91"'
             value={supplySearch}
-            onChange={(e) => setSupplySearch(e.target.value)}
+            onChange={(e) => handleSupplySearch(e.target.value)}
             style={{
               width: "100%",
               padding: "10px 12px 10px 38px",
               borderRadius: 10,
               border: "1.5px solid #e5e7eb",
-              fontSize: 14,
+              fontSize: 16,
               fontFamily: "inherit",
               boxSizing: "border-box",
               background: "#f9fafb",
@@ -260,7 +313,7 @@ export default function HomeView({ initialServices }: HomeViewProps) {
           />
           {supplySearch && (
             <button
-              onClick={() => setSupplySearch("")}
+              onClick={() => handleSupplySearch("")}
               style={{
                 position: "absolute",
                 right: 10,
@@ -285,17 +338,16 @@ export default function HomeView({ initialServices }: HomeViewProps) {
             gap: 8,
             marginBottom: 12,
             alignItems: "center",
-            // BLINDAJE DEL PADRE:
             width: "100%",
-            maxWidth: "100%", // Impide que este bloque estire la pantalla hacia la derecha
-            boxSizing: "border-box", // Asegura que los paddings no sumen ancho extra
+            maxWidth: "100%",
+            boxSizing: "border-box",
           }}
         >
           {/* Filtro ciudad */}
           <CityFilter
             services={services}
             value={cityFilter}
-            onChange={setCityFilter}
+            onChange={handleCityChange}
           />
 
           {/* Sub-contenedor de categorías */}
@@ -306,9 +358,8 @@ export default function HomeView({ initialServices }: HomeViewProps) {
               overflowX: "auto",
               scrollbarWidth: "none",
               alignItems: "center",
-              // ULTRA-COLAPSO DE FLEXBOX:
-              flex: "1 1 0%", // Fuerza a que la base del cálculo flex sea 0%
-              width: 0, // Truco definitivo: obliga al contenedor a medir 0 y crecer SOLO lo que el padre le permita
+              flex: "1 1 0%",
+              width: 0,
               minWidth: 0,
             }}
           >
@@ -336,7 +387,7 @@ export default function HomeView({ initialServices }: HomeViewProps) {
               return (
                 <button
                   key={cat}
-                  onClick={() => setCategoryFilter(isActive ? "" : cat)}
+                  onClick={() => handleCategoryChange(isActive ? "" : cat)}
                   style={{
                     flexShrink: 0,
                     padding: "7px 12px",
@@ -416,7 +467,7 @@ export default function HomeView({ initialServices }: HomeViewProps) {
                   background: "none",
                   border: "none",
                   borderBottom: `2px solid ${viewMode === mode ? "#111827" : "transparent"}`,
-                  fontSize: 14,
+                  fontSize: 16,
                   fontWeight: viewMode === mode ? 600 : 400,
                   color: viewMode === mode ? "#111827" : "#9ca3af",
                   cursor: "pointer",
@@ -460,13 +511,13 @@ export default function HomeView({ initialServices }: HomeViewProps) {
               </button>
             </div>
             <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 12px" }}>
-              {filtered.length} servicio{filtered.length !== 1 ? "s" : ""}
+              {services.length} de {total} locales
               {supplySearch && ` con "${supplySearch}"`}
               {cityFilter && ` en ${cityFilter}`}
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {filtered.length === 0 ? (
+              {services.length === 0 ? (
                 <div
                   style={{
                     textAlign: "center",
@@ -486,7 +537,7 @@ export default function HomeView({ initialServices }: HomeViewProps) {
                   </p>
                 </div>
               ) : (
-                filtered.map((service) => (
+                services.map((service) => (
                   <div
                     key={service.id}
                     onClick={() => handleSelectOnMap(service)}
@@ -517,13 +568,44 @@ export default function HomeView({ initialServices }: HomeViewProps) {
                 ¿Falta un local en el directorio?
               </button>
             </div>
+            {hasMore && (
+              <button
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                style={{
+                  width: "100%",
+                  padding: "12px 0",
+                  borderRadius: 12,
+                  border: "1.5px solid #e5e7eb",
+                  background: "white",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: "#374151",
+                  cursor: loadingMore ? "not-allowed" : "pointer",
+                  marginTop: 4,
+                  marginBottom: 8,
+                }}
+              >
+                {loadingMore
+                  ? "Cargando..."
+                  : `Ver más (${total - services.length} restantes)`}
+              </button>
+            )}
+
+            {fetching && (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
+                  Buscando...
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Columna derecha — mapa siempre visible */}
           <div style={{ flex: 1 }}>
             <Map
               ref={mapRef}
-              services={filtered}
+              services={mapServices}
               onRequestReport={(service) => {
                 const full = services.find((sv) => sv.id === service.id);
                 if (full) setReporting(full);
@@ -560,7 +642,7 @@ export default function HomeView({ initialServices }: HomeViewProps) {
                   margin: "12px 0 12px",
                 }}
               >
-                {filtered.length} servicio{filtered.length !== 1 ? "s" : ""}
+                {services.length} de {total} locales
                 {supplySearch && ` con "${supplySearch}"`}
                 {cityFilter && ` en ${cityFilter}`}
               </p>
@@ -568,7 +650,7 @@ export default function HomeView({ initialServices }: HomeViewProps) {
               <div
                 style={{ display: "flex", flexDirection: "column", gap: 12 }}
               >
-                {filtered.length === 0 ? (
+                {services.length === 0 ? (
                   <div
                     style={{
                       textAlign: "center",
@@ -592,7 +674,7 @@ export default function HomeView({ initialServices }: HomeViewProps) {
                     </p>
                   </div>
                 ) : (
-                  filtered.map((service) => (
+                  services.map((service) => (
                     <ServiceCard
                       key={service.id}
                       service={service}
@@ -602,12 +684,43 @@ export default function HomeView({ initialServices }: HomeViewProps) {
                   ))
                 )}
               </div>
+              {hasMore && (
+                <button
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                  style={{
+                    width: "100%",
+                    padding: "12px 0",
+                    borderRadius: 12,
+                    border: "1.5px solid #e5e7eb",
+                    background: "white",
+                    fontSize: 14,
+                    fontWeight: 500,
+                    color: "#374151",
+                    cursor: loadingMore ? "not-allowed" : "pointer",
+                    marginTop: 4,
+                    marginBottom: 8,
+                  }}
+                >
+                  {loadingMore
+                    ? "Cargando..."
+                    : `Ver más (${total - services.length} restantes)`}
+                </button>
+              )}
+
+              {fetching && (
+                <div style={{ textAlign: "center", padding: "20px 0" }}>
+                  <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
+                    Buscando...
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
             <div style={{ height: "calc(100dvh - 200px)" }}>
               <Map
                 ref={mapRef}
-                services={filtered}
+                services={mapServices}
                 onRequestReport={(s) => {
                   const full = services.find((sv) => sv.id === s.id);
                   if (full) setReporting(full);

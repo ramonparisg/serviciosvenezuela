@@ -4,49 +4,68 @@ import { ServiceWithSupplies, SupplyWithStatus } from "@/types";
 export interface ServiceFilters {
   category?: string;
   city?: string;
-  supply?: string; // nombre del insumo buscado
+  supply?: string;
+  page?: number;
+  pageSize?: number;
 }
 
-export async function getServices(
-  filters: ServiceFilters = {},
-): Promise<ServiceWithSupplies[]> {
-  const since = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(); // 3 días
+export async function getServices(filters: ServiceFilters = {}): Promise<{
+  services: ServiceWithSupplies[];
+  total: number;
+  hasMore: boolean;
+}> {
+  const { category, city, supply, page = 0, pageSize = 20 } = filters;
+  const since = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
 
-  let query = supabase
-    .from("services")
+  // Query 1 — servicios paginados (liviano)
+  let servicesQuery = supabase
+    .from("services_with_last_report") // ← vista en lugar de tabla
     .select(
-      `
-      *,
-      supply_reports!left(
-        id, status, created_at,
-        supply:supplies(id, name, category, is_custom)
-      )
-    `,
+      "id, name, category, address, city, state, phone, notes, lat, lng, last_reported_at",
+      { count: "exact" },
     )
-    .eq("enabled", true)
-    .neq("category", "water")
-    .order("city, name");
+    .order("last_reported_at", { ascending: false, nullsFirst: false }) // ← últimos reportados primero
+    .range(page * pageSize, (page + 1) * pageSize - 1);
 
-  if (filters.category) query = query.eq("category", filters.category);
-  if (filters.city) query = query.ilike("city", `%${filters.city}%`);
+  if (category) servicesQuery = servicesQuery.eq("category", category);
+  if (city) servicesQuery = servicesQuery.ilike("city", `%${city}%`);
 
-  const { data, error } = await query;
+  const {
+    data: servicesData,
+    error: servicesError,
+    count,
+  } = await servicesQuery;
 
-  if (error) {
-    console.error("Error fetching services:", error);
-    return [];
+  if (servicesError || !servicesData?.length) {
+    return { services: [], total: count ?? 0, hasMore: false };
   }
 
-  // Procesar insumos por servicio
-  const services: ServiceWithSupplies[] = (data ?? []).map((service) => {
-    const recentReports = (service.supply_reports ?? []).filter(
-      (r: any) => r.created_at > since && r.supply,
-    );
+  // Query 2 — reportes solo de los servicios traídos (no de todos)
+  const serviceIds = servicesData.map((s) => s.id);
 
-    // Agrupar por insumo
+  const { data: reportsData } = await supabase
+    .from("supply_reports")
+    .select(
+      "service_id, status, created_at, supply:supplies(id, name, category, is_custom)",
+    )
+    .in("service_id", serviceIds)
+    .gt("created_at", since)
+    .order("created_at", { ascending: false });
+
+  // Agrupar reportes por servicio
+  const reportsByService = new Map<string, any[]>();
+  serviceIds.forEach((id) => reportsByService.set(id, []));
+  (reportsData ?? []).forEach((r: any) => {
+    if (r.supply) reportsByService.get(r.service_id)?.push(r);
+  });
+
+  // Calcular insumos por servicio
+  // @ts-ignore
+  const services: ServiceWithSupplies[] = servicesData.map((service) => {
+    const reports = reportsByService.get(service.id) ?? [];
     const supplyMap = new Map<string, SupplyWithStatus>();
 
-    recentReports.forEach((r: any) => {
+    reports.forEach((r: any) => {
       const supplyId = r.supply.id;
       if (!supplyMap.has(supplyId)) {
         supplyMap.set(supplyId, {
@@ -60,15 +79,12 @@ export async function getServices(
       const entry = supplyMap.get(supplyId)!;
       entry.report_count++;
       if (r.status === "available") entry.available_count++;
-
-      // Mantener el más reciente
       if (!entry.last_reported_at || r.created_at > entry.last_reported_at) {
         entry.last_reported_at = r.created_at;
         entry.latest_status = r.status;
       }
     });
 
-    // Ordenar: disponibles primero, luego por más reciente
     const supplies = Array.from(supplyMap.values()).sort((a, b) => {
       if (a.latest_status === "available" && b.latest_status !== "available")
         return -1;
@@ -77,45 +93,21 @@ export async function getServices(
       return (b.last_reported_at ?? "") > (a.last_reported_at ?? "") ? 1 : -1;
     });
 
-    return {
-      ...service,
-      supply_reports: undefined,
-      supplies,
-    };
+    return { ...service, supplies };
   });
 
-  // Si hay búsqueda por insumo, filtrar y reordenar
-  if (filters.supply) {
-    const term = filters.supply.toLowerCase();
-    return services
-      .filter((s) =>
-        s.supplies.some((sw) => sw.supply.name.toLowerCase().includes(term)),
+  // Filtrar por insumo si hay búsqueda
+  const filtered = supply
+    ? services.filter((s) =>
+        s.supplies.some((sw) =>
+          sw.supply.name.toLowerCase().includes(supply.toLowerCase()),
+        ),
       )
-      .sort((a, b) => {
-        const aHas = a.supplies.filter(
-          (sw) =>
-            sw.supply.name.toLowerCase().includes(term) &&
-            sw.latest_status === "available",
-        ).length;
-        const bHas = b.supplies.filter(
-          (sw) =>
-            sw.supply.name.toLowerCase().includes(term) &&
-            sw.latest_status === "available",
-        ).length;
-        return bHas - aHas;
-      });
-  }
+    : services;
 
-  return services;
-}
-
-export async function getSuppliesByCategory(category: string) {
-  const { data, error } = await supabase
-    .from("supplies")
-    .select("*")
-    .eq("category", category)
-    .order("name");
-
-  if (error) return [];
-  return data;
+  return {
+    services: filtered,
+    total: count ?? 0,
+    hasMore: (count ?? 0) > (page + 1) * pageSize,
+  };
 }
