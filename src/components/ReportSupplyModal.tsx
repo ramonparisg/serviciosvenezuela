@@ -239,31 +239,31 @@ export default function ReportSupplyModal({
             </div>
 
             {/* Sugerencias del buscador */}
-            {(search.length > 0 || allSupplies.length > 0) && (
-              <div
+            {loadingSupplies ? (
+              <p
                 style={{
-                  border: "1px solid #f0f0f0",
-                  borderRadius: 10,
-                  overflow: "hidden",
-                  marginBottom: 16,
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                  maxHeight: 240,
-                  overflowY: "auto",
+                  padding: "12px",
+                  fontSize: 13,
+                  color: "#9ca3af",
+                  margin: 0,
                 }}
               >
-                {loadingSupplies ? (
-                  <p
+                Cargando...
+              </p>
+            ) : (
+              <>
+                {(search.length > 0 || allSupplies.length > 0) && (
+                  <div
                     style={{
-                      padding: "12px",
-                      fontSize: 13,
-                      color: "#9ca3af",
-                      margin: 0,
+                      border: "1px solid #f0f0f0",
+                      borderRadius: 10,
+                      overflow: "hidden",
+                      marginBottom: 16,
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                      maxHeight: 240,
+                      overflowY: "auto",
                     }}
                   >
-                    Cargando...
-                  </p>
-                ) : (
-                  <>
                     {filtered.map((supply) => (
                       <div
                         key={supply.id}
@@ -326,7 +326,7 @@ export default function ReportSupplyModal({
                           background: "#fafafa",
                         }}
                       >
-                        <span style={{ fontSize: 14, color: "#6b7280" }}>
+                        <span style={{ fontSize: 16, color: "#6b7280" }}>
                           Agregar "{searchTrimmed}"
                         </span>
                         <div style={{ display: "flex", gap: 6 }}>
@@ -378,9 +378,9 @@ export default function ReportSupplyModal({
                         Sin resultados
                       </p>
                     )}
-                  </>
+                  </div>
                 )}
-              </div>
+              </>
             )}
 
             {/* Selecciones actuales */}

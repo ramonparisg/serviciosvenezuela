@@ -8,15 +8,14 @@ interface CityFilterProps {
   onChange: (city: string) => void;
 }
 
-export default function CityFilter({
-  services,
-  value,
-  onChange,
-}: CityFilterProps) {
+export default function CityFilter({ value, onChange }: CityFilterProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [services, setServices] = useState<{ city: string; state: string }[]>(
+    [],
+  );
 
   // Agrupar ciudades por estado
   const grouped = services.reduce<Record<string, Set<string>>>((acc, s) => {
@@ -37,6 +36,13 @@ export default function CityFilter({
     .sort((a, b) => a.state.localeCompare(b.state));
 
   const selectedLabel = value || "Todas las ciudades";
+
+  useEffect(() => {
+    fetch("/api/services/cities")
+      .then((res) => res.json())
+      .then((data) => setServices(data))
+      .catch((err) => console.error("Error fetching cities:", err));
+  }, []);
 
   // Cerrar al hacer click fuera
   useEffect(() => {

@@ -1,6 +1,8 @@
 import { supabase } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
 
+export const revalidate = 3600; // 1 hora — los supplies cambian poco
+
 export async function GET(req: NextRequest) {
   const category = req.nextUrl.searchParams.get("category");
 
