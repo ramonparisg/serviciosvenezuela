@@ -1,9 +1,4 @@
-export type Category =
-  | "hospital"
-  | "pharmacy"
-  | "gas"
-  | "water"
-  | "supermarket";
+export type Category = "hospital" | "pharmacy" | "gas" | "supermarket";
 export type SupplyStatus = "available" | "unavailable";
 
 export interface Service {
