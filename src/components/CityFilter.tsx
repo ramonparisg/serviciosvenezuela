@@ -95,7 +95,7 @@ export default function CityFilter({
             position: "absolute",
             top: "calc(100% + 6px)",
             left: 0,
-            zIndex: 100,
+            zIndex: 999,
             background: "white",
             border: "1px solid #e5e7eb",
             borderRadius: 12,

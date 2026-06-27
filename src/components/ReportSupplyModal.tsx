@@ -220,13 +220,12 @@ export default function ReportSupplyModal({
                 placeholder="Buscar o escribir un insumo..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                autoFocus
                 style={{
                   width: "100%",
                   padding: "10px 12px",
                   borderRadius: 10,
                   border: "1.5px solid #e5e7eb",
-                  fontSize: 14,
+                  fontSize: 16,
                   fontFamily: "inherit",
                   boxSizing: "border-box",
                 }}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { Category, ServiceWithSupplies } from "@/types";
 import { categoryConfig } from "@/lib/category-config";
@@ -55,6 +55,41 @@ export default function HomeView({ initialServices }: HomeViewProps) {
       mapRef.current?.flyTo(service.lat, service.lng);
     }
   }
+
+  // Cuando se selecciona una ciudad en el CityFilter, pedir geocoding
+  // y mover el mapa hacia esa ciudad usando el handle expuesto por Map.
+  // Usamos la API interna /api/geocode (POST) que devuelve lat/lng.
+  useEffect(() => {
+    if (!cityFilter) return;
+
+    let cancelled = false;
+
+    async function geocodeAndFly() {
+      try {
+        const res = await fetch("/api/geocode", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ address: cityFilter, city: cityFilter }),
+        });
+        const data = await res.json();
+        if (cancelled) return;
+        if (data && data.found && typeof data.lat === "number" && typeof data.lng === "number") {
+          // Mantener zoom en 13 al hacer flyTo por selección de ciudad
+          mapRef.current?.flyTo(data.lat, data.lng, 13);
+        }
+      } catch (err) {
+        // fallar silenciosamente; no interfiere con la UI
+        // eslint-disable-next-line no-console
+        console.error("Geocode failed", err);
+      }
+    }
+
+    geocodeAndFly();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cityFilter]);
 
   // Filtrado en cliente — rápido, sin llamadas al servidor
   const filtered = services
@@ -136,6 +171,7 @@ export default function HomeView({ initialServices }: HomeViewProps) {
         minHeight: "100dvh",
         background: "#f9fafb",
         fontFamily: "system-ui, sans-serif",
+        maxWidth: "100%",
       }}
     >
       {/* Header */}
@@ -225,6 +261,7 @@ export default function HomeView({ initialServices }: HomeViewProps) {
             marginBottom: 12,
             overflowX: "clip",
             scrollbarWidth: "none",
+            alignItems: "center",
           }}
         >
           {/* Filtro ciudad */}
@@ -233,8 +270,23 @@ export default function HomeView({ initialServices }: HomeViewProps) {
             value={cityFilter}
             onChange={setCityFilter}
           />
-
           {/* Filtros categoría */}
+          {isDesktop && (
+            <p
+              style={{
+                fontSize: 13,
+                color: "#6b7280",
+                margin: 0, // quitar margin-bottom que desalineaba verticalmente
+                lineHeight: 1.5,
+                borderLeft: "1px solid #e5e7eb",
+                alignSelf: "center", // asegurar centrado vertical dentro del flex container
+                paddingLeft: 8, // un poco de separación desde la línea
+              }}
+            >
+              Filtros por categoría:
+            </p>
+          )}
+
           {(Object.keys(categoryConfig) as Category[]).map((cat) => {
             const isActive = categoryFilter === cat;
             const { emoji, color } = categoryConfig[cat];

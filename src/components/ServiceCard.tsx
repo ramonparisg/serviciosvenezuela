@@ -72,7 +72,7 @@ export default function ServiceCard({
       {hasSupplies ? (
         <div style={{ marginBottom: 12 }}>
           <p style={{ fontSize: 12, color: "#9ca3af", margin: "0 0 8px" }}>
-            Últimas 6 horas
+            Últimas 72 horas
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {service.supplies.slice(0, 5).map((sw) => {

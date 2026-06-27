@@ -234,7 +234,7 @@ export default function ServiceDetail({
               Insumos reportados
             </h2>
             <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
-              Últimas 24 horas · {reports.length} reporte
+              Últimas 72 horas · {reports.length} reporte
               {reports.length !== 1 ? "s" : ""}
             </p>
           </div>

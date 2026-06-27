@@ -11,7 +11,7 @@ export default function VerificationBar({
   if (total === 0) {
     return (
       <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
-        Sin reportes en las últimas 6h
+        Sin reportes en las últimas 72h
       </p>
     );
   }

@@ -11,7 +11,7 @@ import type { Map as LeafletMap } from "leaflet";
 import { createIcon } from "@/lib/leaflet-icons";
 
 export interface MapHandle {
-  flyTo: (lat: number, lng: number) => void;
+  flyTo: (lat: number, lng: number, zoom?: number) => void;
 }
 
 interface MapProps {
@@ -29,8 +29,9 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
   const [mapReady, setMapReady] = useState(false);
 
   useImperativeHandle(ref, () => ({
-    flyTo(lat: number, lng: number) {
-      mapRef.current?.flyTo([lat, lng], 16, { animate: true, duration: 0.8 });
+    flyTo(lat: number, lng: number, zoom?: number) {
+      const z = zoom ?? mapRef.current?.getZoom() ?? 16;
+      mapRef.current?.flyTo([lat, lng], z, { animate: true, duration: 0.8 });
     },
   }));
 
@@ -44,15 +45,20 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
 
       mapRef.current = L.map(containerRef.current, {
         center: [10.4806, -66.9036],
-        zoom: 12,
+        zoom: 13,
         zoomControl: false,
       });
 
       L.control.zoom({ position: "topright" }).addTo(mapRef.current);
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "© OpenStreetMap",
-        maxZoom: 19,
-      }).addTo(mapRef.current);
+      L.tileLayer(
+        "https://tiles.stadiamaps.com/tiles/outdoors/{z}/{x}/{y}{r}.{ext}",
+        {
+          minZoom: 0,
+          maxZoom: 20,
+          // @ts-ignore
+          ext: "png",
+        },
+      ).addTo(mapRef.current);
 
       setMapReady(true);
     };
