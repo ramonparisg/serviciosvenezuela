@@ -51,15 +51,9 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
       });
 
       L.control.zoom({ position: "topright" }).addTo(mapRef.current);
-      L.tileLayer(
-        "https://tiles.stadiamaps.com/tiles/outdoors/{z}/{x}/{y}{r}.{ext}",
-        {
-          minZoom: 0,
-          maxZoom: 20,
-          // @ts-ignore
-          ext: "png",
-        },
-      ).addTo(mapRef.current);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+      }).addTo(mapRef.current);
 
       setMapReady(true);
     };
@@ -115,8 +109,13 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
           suppliesContainer.style.gap = "6px";
           suppliesContainer.style.marginBottom = "8px";
 
-          const supplies = Array.isArray(service.supplies) ? service.supplies : [];
-          const reported = supplies.filter((sw: any) => sw.latest_status !== null && sw.latest_status !== undefined);
+          const supplies = Array.isArray(service.supplies)
+            ? service.supplies
+            : [];
+          const reported = supplies.filter(
+            (sw: any) =>
+              sw.latest_status !== null && sw.latest_status !== undefined,
+          );
 
           if (reported.length === 0) {
             const none = document.createElement("div");
