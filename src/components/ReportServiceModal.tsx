@@ -8,7 +8,7 @@ interface ReportServiceModalProps {
 }
 
 const REASONS = [
-  { value: "outdated", label: "📝 Información desactualizada" },
+  // { value: "outdated", label: "📝 Información desactualizada" },
   { value: "closed", label: "🔒 Local cerrado permanentemente" },
   { value: "wrong_location", label: "📍 Ubicación incorrecta" },
   { value: "duplicate", label: "👥 Está duplicado" },

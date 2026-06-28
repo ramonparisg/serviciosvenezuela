@@ -1,14 +1,12 @@
 "use client";
 
-import { useCallback, useRef, useState, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { Category, ServiceWithSupplies } from "@/types";
-import { categoryConfig } from "@/lib/category-config";
+import { ServiceWithSupplies } from "@/types";
 import ServiceCard from "./ServiceCard";
 import Footer from "./Footer";
 import ReportSupplyModal from "./ReportSupplyModal";
 import MissingServiceModal from "./MissingServiceModal";
-import CityFilter from "./CityFilter";
 import { MapHandle } from "@/components/Map";
 import { useViewport } from "@/hooks/useViewport";
 import FiltersModal, {
@@ -16,6 +14,8 @@ import FiltersModal, {
   Filters,
 } from "@/components/FiltersModal";
 import FilterBar from "@/components/FilterBar";
+import { useLocationCheck } from "@/hooks/useLocationCheck";
+import OutsideVenezuelaWarning from "@/components/OutsideVenezuelaWarning";
 
 const Map = dynamic(() => import("./Map"), {
   ssr: false,
@@ -57,8 +57,6 @@ export default function HomeView({
   const [loadingMore, setLoadingMore] = useState(false);
   const supplyDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
-  const [categoryFilter, setCategoryFilter] = useState<string>("");
-  const [cityFilter, setCityFilter] = useState("");
   const [supplySearch, setSupplySearch] = useState("");
   const [reporting, setReporting] = useState<ServiceWithSupplies | null>(null);
   const [showMissing, setShowMissing] = useState(false);
@@ -76,6 +74,7 @@ export default function HomeView({
   }, []);
 
   const { isDesktop } = useViewport();
+  const locationStatus = useLocationCheck();
 
   const mapRef = useRef<MapHandle | null>(null);
 
@@ -89,6 +88,7 @@ export default function HomeView({
   // y mover el mapa hacia esa ciudad usando el handle expuesto por Map.
   // Usamos la API interna /api/geocode (POST) que devuelve lat/lng.
   useEffect(() => {
+    const cityFilter = filters.city;
     if (!cityFilter) return;
 
     let cancelled = false;
@@ -123,7 +123,7 @@ export default function HomeView({
     return () => {
       cancelled = true;
     };
-  }, [cityFilter]);
+  }, [filters.city]);
 
   const [mapServices, setMapServices] = useState<any[]>([]);
 
@@ -211,26 +211,6 @@ export default function HomeView({
   const handleReport = useCallback((service: ServiceWithSupplies) => {
     setReporting(service);
   }, []);
-
-  // Cambiar vista y, si se selecciona la vista mapa en mobile, hacer scroll
-  // hacia abajo para que el mapa quede visible por completo.
-  function handleChangeViewMode(mode: ViewMode) {
-    setViewMode(mode);
-    if (mode === "map") {
-      // Esperar un pequeño delay para que el DOM actualice y el mapa se monte,
-      // luego hacer scroll al fondo de la página de forma suavizada.
-      // setTimeout(() => {
-      //   try {
-      //     window.scrollTo({
-      //       top: document.body.scrollHeight,
-      //       behavior: "smooth",
-      //     });
-      //   } catch (e) {
-      //     // En ambientes sin window no hacemos nada
-      //   }
-      // }, 120);
-    }
-  }
 
   const handleReportSuccess = useCallback(
     (
@@ -434,6 +414,12 @@ export default function HomeView({
         )}
       </div>
 
+      {locationStatus === "outside" && (
+        <div style={{ margin: "8px 8px" }}>
+          <OutsideVenezuelaWarning />
+        </div>
+      )}
+
       {/* Contenido */}
       {isDesktop ? (
         // Layout desktop
@@ -467,7 +453,7 @@ export default function HomeView({
             <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 12px" }}>
               {services.length} de {total} locales
               {supplySearch && ` con "${supplySearch}"`}
-              {cityFilter && ` en ${cityFilter}`}
+              {filters.city && ` en ${filters.city}`}
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -564,7 +550,9 @@ export default function HomeView({
                 const full = services.find((sv) => sv.id === service.id);
                 if (full) setReporting(full);
               }}
-              activeCategories={new Set(categoryFilter ? [categoryFilter] : [])}
+              activeCategories={
+                new Set(filters.category ? [filters.category] : [])
+              }
             />
           </div>
         </div>
@@ -598,7 +586,7 @@ export default function HomeView({
               >
                 {services.length} de {total} locales
                 {supplySearch && ` con "${supplySearch}"`}
-                {cityFilter && ` en ${cityFilter}`}
+                {filters.city && ` en ${filters.city}`}
               </p>
 
               <div
@@ -680,7 +668,7 @@ export default function HomeView({
                   if (full) setReporting(full);
                 }}
                 activeCategories={
-                  new Set(categoryFilter ? [categoryFilter] : [])
+                  new Set(filters.category ? [filters.category] : [])
                 }
               />
             </div>

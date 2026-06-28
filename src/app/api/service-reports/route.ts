@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isFromVenezuela } from "@/lib/geo";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const NOTIFY_EMAIL = process.env.NOTIFY_EMAIL;
@@ -13,6 +14,10 @@ const REASONS: Record<string, string> = {
 
 export async function POST(req: NextRequest) {
   const { service_id, service_name, reason, notes } = await req.json();
+
+  if (!isFromVenezuela(req)) {
+    return NextResponse.json({ error: "outside_venezuela" }, { status: 403 });
+  }
 
   if (!service_id || !reason) {
     return NextResponse.json(

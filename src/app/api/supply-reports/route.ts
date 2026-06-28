@@ -1,7 +1,15 @@
 import { supabase } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
+import { isFromVenezuela, getCountry } from "@/lib/geo";
 
 export async function POST(req: NextRequest) {
+  if (!isFromVenezuela(req)) {
+    return NextResponse.json(
+      { error: "outside_venezuela", country: getCountry(req) },
+      { status: 403 },
+    );
+  }
+
   const { service_id, supply_id, status } = await req.json();
 
   if (!service_id || !supply_id || !status) {
