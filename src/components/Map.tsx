@@ -47,9 +47,9 @@ const LOCATION_BUTTON = {
     label: "Mi ubicación",
     icon: "📍",
     style: {
-      border: "1.5px solid #93c5fd",
-      background: "#eff6ff",
-      color: "#3b82f6",
+      border: "1.5px solid #e5e7eb",
+      background: "white",
+      color: "#374151",
     },
   },
   denied: {
@@ -94,8 +94,11 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
   const mapRef = useRef<LeafletMap | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [mapReady, setMapReady] = useState(false);
-  const { requestPreciseLocation: requestLocation, geoStatus: locationStatus } =
-    useLocation();
+  const {
+    requestPreciseLocation: requestLocation,
+    geoStatus: locationStatus,
+    ready,
+  } = useLocation();
 
   const btn = LOCATION_BUTTON[locationStatus];
 
@@ -353,32 +356,35 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
           gap: "10px",
         }}
       >
-        <button
-          onClick={(e) => {
-            e.stopPropagation(); // Evita que Leaflet registre el clic en el mapa
-            handleFlyToUser();
-          }}
-          style={{
-            flexShrink: 0,
-            padding: "7px 12px",
-            borderRadius: 8,
-            fontSize: 13,
-            fontWeight: 500,
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            fontFamily: "inherit",
-            cursor:
-              locationStatus === "loading" || locationStatus === "unavailable"
-                ? "not-allowed"
-                : "pointer",
-            whiteSpace: "nowrap" as const,
-            ...btn.style,
-            boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-          }}
-        >
-          {btn.icon} {btn.label}
-        </button>
+        {ready && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation(); // Evita que Leaflet registre el clic en el mapa
+              handleFlyToUser();
+            }}
+            style={{
+              flexShrink: 0,
+              padding: "7px 12px",
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 500,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontFamily: "inherit",
+              cursor:
+                locationStatus === "loading" || locationStatus === "unavailable"
+                  ? "not-allowed"
+                  : "pointer",
+              whiteSpace: "nowrap" as const,
+              ...btn.style,
+              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+            }}
+          >
+            {btn.icon} {btn.label}
+          </button>
+        )}
+
         <button
           onClick={(e) => {
             e.stopPropagation();

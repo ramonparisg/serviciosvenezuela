@@ -4,6 +4,7 @@ import { Filters } from "./FiltersModal";
 import { categoryConfig } from "@/lib/category-config";
 import { Category } from "@/types";
 import { useLocation } from "@/hooks/useLocation";
+import { useState } from "react";
 
 interface FilterBarProps {
   filters: Filters;
@@ -80,10 +81,19 @@ export default function FilterBar({
 }: FilterBarProps) {
   const chips: { key: keyof Filters; label: string }[] = [];
 
-  // @ts-ignore
-  const btn = LOCATION_BUTTON[locationStatus];
+  const [clickedOrder, setClickedOrder] = useState(false);
 
-  const { isVenezuela } = useLocation();
+  const btn = clickedOrder
+    ? // @ts-ignore
+      LOCATION_BUTTON[locationStatus]
+    : LOCATION_BUTTON.idle;
+
+  const { ready } = useLocation();
+
+  const handleOrderByDistance = () => {
+    setClickedOrder(true);
+    onMyLocation();
+  };
 
   if (filters.category) {
     const config = categoryConfig[filters.category as Category];
@@ -188,7 +198,7 @@ export default function FilterBar({
         </button>
       </div>
       {/* Botón ubicación */}
-      {isVenezuela && (
+      {ready && (
         <div
           style={{
             display: "flex",
@@ -200,7 +210,7 @@ export default function FilterBar({
           }}
         >
           <button
-            onClick={onMyLocation}
+            onClick={handleOrderByDistance}
             disabled={
               locationStatus === "loading" || locationStatus === "unavailable"
             }

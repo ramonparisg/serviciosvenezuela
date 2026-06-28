@@ -10,15 +10,14 @@ export interface Coords {
 export type GeoStatus =
   | "idle"
   | "loading"
-  | "granted" // ubicación precisa del navegador
-  | "denied" // usuario rechazó — usando IP como fallback si hay
-  | "fallback" // geolocation falló pero tenemos coords de IP
-  | "unavailable"; // geolocation no soportado — usando IP si hay
+  | "granted"
+  | "denied"
+  | "fallback"
+  | "unavailable";
 
 export type CountryStatus = "checking" | "venezuela" | "outside" | "unknown";
 
 export interface IPInfo {
-  country: string;
   city: string | null;
   region: string | null;
   lat: number | null;
@@ -33,6 +32,7 @@ interface LocationState {
   countryStatus: CountryStatus;
   isVenezuela: boolean;
   isOutside: boolean;
+  ready: boolean; // true cuando ipwho respondió (con o sin éxito)
 }
 
 export function useLocation() {
@@ -44,17 +44,23 @@ export function useLocation() {
     countryStatus: "checking",
     isVenezuela: true,
     isOutside: false,
+    ready: false,
   });
 
   useEffect(() => {
-    // Verificar país con Cloudflare header
+    // País desde Cloudflare — independiente del resto
     fetch("/api/location")
       .then((r) => r.json())
       .then((data) => {
         const isVE = data.country === "VE" || data.country === "unknown";
         setState((prev) => ({
           ...prev,
-          countryStatus: data.country === "VE" ? "venezuela" : "outside",
+          countryStatus:
+            data.country === "VE"
+              ? "venezuela"
+              : data.country === "unknown"
+                ? "unknown"
+                : "outside",
           isVenezuela: isVE,
           isOutside: !isVE,
         }));
@@ -67,71 +73,120 @@ export function useLocation() {
         }));
       });
 
-    // Coords de IP — solo para uso interno como fallback
-    // No tocar geoStatus aquí — su ciclo de vida es independiente
+    // IP primero — al terminar (éxito o fallo) pedimos geolocation
     fetch("https://ipwho.is/")
       .then((r) => r.json())
       .then((data) => {
-        if (!data.success) return;
+        const ipInfo: IPInfo | null = data.success
+          ? {
+              city: data.city ?? null,
+              region: data.region ?? null,
+              lat: data.latitude ?? null,
+              lng: data.longitude ?? null,
+            }
+          : null;
 
-        const ipInfo: IPInfo = {
-          country: "",
-          city: data.city ?? null,
-          region: data.region ?? null,
-          lat: data.latitude ?? null,
-          lng: data.longitude ?? null,
-        };
-
-        setState((prev) => ({
-          ...prev,
-          ipInfo,
-          ...(prev.geoStatus === "denied" || prev.geoStatus === "unavailable"
-            ? {
-                coords:
-                  ipInfo.lat && ipInfo.lng
-                    ? { lat: ipInfo.lat, lng: ipInfo.lng }
-                    : prev.coords,
-                geoStatus:
-                  ipInfo.lat && ipInfo.lng ? "fallback" : prev.geoStatus,
-              }
-            : {}),
-        }));
+        setState((prev) => ({ ...prev, ipInfo, ready: true }));
+        requestGeolocation(ipInfo);
       })
-      .catch(() => {});
+      .catch(() => {
+        // ipwho falló — marcar ready igual y pedir geolocation sin fallback de IP
+        setState((prev) => ({ ...prev, ready: true }));
+        requestGeolocation(null);
+      });
   }, []);
 
-  function requestPreciseLocation(): Promise<Coords | null> {
-    if (state.geoStatus === "granted" && state.coords && state.isPrecise) {
-      return Promise.resolve(state.coords);
+  // Separada del estado para evitar closures viejos
+  function requestGeolocation(ipInfo: IPInfo | null) {
+    const ipCoords =
+      ipInfo?.lat && ipInfo?.lng ? { lat: ipInfo.lat, lng: ipInfo.lng } : null;
+
+    if (!navigator.geolocation) {
+      setState((prev) => ({
+        ...prev,
+        geoStatus: ipCoords ? "fallback" : "unavailable",
+        coords: ipCoords,
+        isPrecise: false,
+      }));
+      return;
     }
 
-    return new Promise((resolve) => {
-      if (!navigator.geolocation) {
-        // Sin geolocation — usar IP si hay
+    navigator.permissions.query({ name: "geolocation" }).then((permission) => {
+      if (permission.state === "denied") {
         setState((prev) => ({
           ...prev,
-          geoStatus: prev.ipInfo?.lat ? "fallback" : "unavailable",
-          coords:
-            prev.ipInfo?.lat && prev.ipInfo?.lng
-              ? { lat: prev.ipInfo.lat, lng: prev.ipInfo.lng }
-              : prev.coords,
+          geoStatus: ipCoords ? "fallback" : "denied",
+          coords: ipCoords,
           isPrecise: false,
         }));
-        resolve(
-          state.ipInfo?.lat && state.ipInfo?.lng
-            ? { lat: state.ipInfo.lat, lng: state.ipInfo.lng }
-            : null,
-        );
         return;
       }
 
-      // Ciclo normal: idle → loading
       setState((prev) => ({ ...prev, geoStatus: "loading" }));
 
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          // Éxito: loading → granted
-          const coords: Coords = {
+          setState((prev) => ({
+            ...prev,
+            coords: { lat: pos.coords.latitude, lng: pos.coords.longitude },
+            isPrecise: true,
+            geoStatus: "granted",
+          }));
+        },
+        () => {
+          setState((prev) => ({
+            ...prev,
+            geoStatus: ipCoords ? "fallback" : "denied",
+            coords: ipCoords ?? prev.coords,
+            isPrecise: false,
+          }));
+        },
+        { timeout: 5000, enableHighAccuracy: false },
+      );
+    });
+  }
+
+  // Expuesta para el botón "afinar ubicación" si lo necesitas después
+  async function requestPreciseLocation(): Promise<Coords | null> {
+    if (state.geoStatus === "granted" && state.coords && state.isPrecise) {
+      return state.coords;
+    }
+
+    const ipCoords =
+      state.ipInfo?.lat && state.ipInfo?.lng
+        ? { lat: state.ipInfo.lat, lng: state.ipInfo.lng }
+        : null;
+
+    if (!navigator.geolocation) {
+      setState((prev) => ({
+        ...prev,
+        geoStatus: ipCoords ? "fallback" : "unavailable",
+        coords: ipCoords ?? prev.coords,
+        isPrecise: false,
+      }));
+      return ipCoords;
+    }
+
+    const permission = await navigator.permissions.query({
+      name: "geolocation",
+    });
+
+    if (permission.state === "denied") {
+      setState((prev) => ({
+        ...prev,
+        geoStatus: ipCoords ? "fallback" : "denied",
+        coords: ipCoords ?? prev.coords,
+        isPrecise: false,
+      }));
+      return ipCoords;
+    }
+
+    return new Promise((resolve) => {
+      setState((prev) => ({ ...prev, geoStatus: "loading" }));
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const coords = {
             lat: pos.coords.latitude,
             lng: pos.coords.longitude,
           };
@@ -143,41 +198,31 @@ export function useLocation() {
           }));
           resolve(coords);
         },
-        (err) => {
-          // Fallo: loading → denied/fallback
-          const hardFail =
-            err.code === err.PERMISSION_DENIED ? "denied" : "unavailable";
-          const hasIP = !!(state.ipInfo?.lat && state.ipInfo?.lng);
-
+        () => {
           setState((prev) => ({
             ...prev,
-            // fallback si tenemos IP, sino el error real
-            geoStatus: hasIP ? "fallback" : hardFail,
-            coords: hasIP
-              ? { lat: state.ipInfo!.lat!, lng: state.ipInfo!.lng! }
-              : prev.coords,
+            geoStatus: ipCoords ? "fallback" : "denied",
+            coords: ipCoords ?? prev.coords,
             isPrecise: false,
           }));
-
-          resolve(
-            hasIP ? { lat: state.ipInfo!.lat!, lng: state.ipInfo!.lng! } : null,
-          );
+          resolve(ipCoords);
         },
-        { timeout: 3000, enableHighAccuracy: true },
+        { timeout: 5000, enableHighAccuracy: false },
       );
     });
   }
 
   function clearPreciseLocation() {
+    const ipCoords =
+      state.ipInfo?.lat && state.ipInfo?.lng
+        ? { lat: state.ipInfo.lat, lng: state.ipInfo.lng }
+        : null;
+
     setState((prev) => ({
       ...prev,
-      coords:
-        prev.ipInfo?.lat && prev.ipInfo?.lng
-          ? { lat: prev.ipInfo.lat, lng: prev.ipInfo.lng }
-          : null,
+      coords: ipCoords,
       isPrecise: false,
-      // Volver a fallback si tenemos IP, sino idle
-      geoStatus: prev.ipInfo?.lat ? "fallback" : "idle",
+      geoStatus: ipCoords ? "fallback" : "idle",
     }));
   }
 
@@ -189,6 +234,7 @@ export function useLocation() {
     countryStatus: state.countryStatus,
     isVenezuela: state.isVenezuela,
     isOutside: state.isOutside,
+    ready: state.ready,
     requestPreciseLocation,
     clearPreciseLocation,
   };
