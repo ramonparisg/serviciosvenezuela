@@ -556,9 +556,7 @@ export default function HomeView({
               ref={mapRef}
               services={mapServices}
               onRequestReport={(service) => {
-                console.log("onRequestReport", service);
-                const full = services.find((sv) => sv.id === service.id);
-                if (full) setReporting(full);
+                setReporting(service);
               }}
               activeCategories={
                 new Set(filters.category ? [filters.category] : [])
@@ -674,7 +672,6 @@ export default function HomeView({
                 ref={mapRef}
                 services={mapServices}
                 onRequestReport={(s) => {
-                  console.log("onRequestReport", s);
                   setReporting(s);
                 }}
                 activeCategories={
