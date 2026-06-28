@@ -62,6 +62,9 @@ export default function HomeView({
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [showFilters, setShowFilters] = useState(false);
 
+  const [showStickyBar, setShowStickyBar] = useState(false);
+  const headerRef = useRef<HTMLDivElement>(null);
+
   const [allCities, setAllCities] = useState<{ city: string; state: string }[]>(
     [],
   );
@@ -76,6 +79,16 @@ export default function HomeView({
 
   const { geoStatus: locationStatus, requestPreciseLocation: requestLocation } =
     useLocation();
+
+  useEffect(() => {
+    if (isDesktop) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowStickyBar(!entry.isIntersecting),
+      { threshold: 0, rootMargin: "-60px 0px 0px 0px" },
+    );
+    if (headerRef.current) observer.observe(headerRef.current);
+    return () => observer.disconnect();
+  }, [isDesktop]);
 
   async function handleMyLocation() {
     const loc = await requestLocation();
@@ -300,7 +313,7 @@ export default function HomeView({
         </p>
 
         {/* Buscador */}
-        <div style={{ position: "relative", marginBottom: 12 }}>
+        <div style={{ position: "relative", marginBottom: 12 }} ref={headerRef}>
           <span
             style={{
               position: "absolute",
@@ -428,6 +441,102 @@ export default function HomeView({
           </div>
         )}
       </div>
+
+      {/* Sticky navbar — solo mobile, aparece al hacer scroll */}
+      {!isDesktop && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 500,
+            background: "white",
+            borderBottom: "1px solid #f0f0f0",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+            padding: "8px 12px",
+            transform: showStickyBar ? "translateY(0)" : "translateY(-100%)",
+            transition: "transform 0.25s ease",
+            display: "flex",
+            gap: 8,
+            alignItems: "center",
+          }}
+        >
+          {/* Buscador reducido */}
+          <div style={{ position: "relative", flex: 1 }}>
+            <span
+              style={{
+                position: "absolute",
+                left: 8,
+                top: "50%",
+                transform: "translateY(-50%)",
+                fontSize: 13,
+              }}
+            >
+              🔍{" "}
+            </span>
+
+            <input
+              type="text"
+              placeholder="Buscar insumo..."
+              value={supplySearch}
+              onChange={(e) => handleSupplySearch(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "7px 8px 7px 26px",
+                borderRadius: 8,
+                border: "1.5px solid #e5e7eb",
+                fontSize: 16,
+                fontFamily: "inherit",
+                boxSizing: "border-box",
+                background: "#f9fafb",
+              }}
+            />
+            {supplySearch && (
+              <button
+                onClick={() => handleSupplySearch("")}
+                style={{
+                  position: "absolute",
+                  right: 6,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  fontSize: 13,
+                  cursor: "pointer",
+                  color: "#9ca3af",
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {/* Botón filtros */}
+          <button
+            onClick={() => setShowFilters(true)}
+            style={{
+              flexShrink: 0,
+              padding: "7px 10px",
+              borderRadius: 8,
+              border: `1.5px solid ${Object.values(filters).some((v) => !!v) ? "#111827" : "#e5e7eb"}`,
+              background: Object.values(filters).some((v) => !!v)
+                ? "#111827"
+                : "white",
+              color: Object.values(filters).some((v) => !!v)
+                ? "white"
+                : "#374151",
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              whiteSpace: "nowrap" as const,
+            }}
+          >
+            ⚙ Filtros
+          </button>
+        </div>
+      )}
 
       {/* Contenido */}
       {isDesktop ? (
