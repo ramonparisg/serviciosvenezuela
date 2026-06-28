@@ -5,6 +5,7 @@ import { ServiceWithSupplies, Supply } from "@/types";
 import { categoryConfig } from "@/lib/category-config";
 import OutsideVenezuelaWarning from "@/components/OutsideVenezuelaWarning";
 import { useLocation } from "@/hooks/useLocation";
+import { fuzzySearch } from "@/lib/fuzzy-search";
 
 interface ReportSupplyModalProps {
   service: ServiceWithSupplies;
@@ -50,18 +51,23 @@ export default function ReportSupplyModal({
 
   // Insumos filtrados por búsqueda, excluyendo ya seleccionados
   const selectedIds = new Set(selections.map((s) => s.supply.id));
-  const filtered = allSupplies.filter(
-    (s) =>
-      !selectedIds.has(s.id) &&
-      s.name.toLowerCase().includes(search.toLowerCase()),
-  );
-
-  // Si el texto no coincide con ninguno existente, ofrecer crearlo
   const searchTrimmed = search.trim();
+
+  const filtered =
+    searchTrimmed.length === 0
+      ? allSupplies.filter((s) => !selectedIds.has(s.id)) // sin búsqueda → mostrar todos
+      : fuzzySearch(
+          allSupplies.filter((s) => !selectedIds.has(s.id)),
+          searchTrimmed,
+          (s) => s.name,
+        ).map((r) => r.item);
+
   const canCreate =
     searchTrimmed.length > 1 &&
-    !allSupplies.some(
-      (s) => s.name.toLowerCase() === searchTrimmed.toLowerCase(),
+    !allSupplies.some((s) =>
+      fuzzySearch([s], searchTrimmed, (x) => x.name).some(
+        (r) => r.score >= 0.9,
+      ),
     );
 
   function addSelection(supply: Supply, status: "available" | "unavailable") {

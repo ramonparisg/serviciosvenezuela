@@ -15,6 +15,7 @@ import FiltersModal, {
 } from "@/components/FiltersModal";
 import FilterBar from "@/components/FilterBar";
 import { useLocation } from "@/hooks/useLocation";
+import SupplySearchInput from "@/components/SupplySearchInput";
 
 const Map = dynamic(() => import("./Map"), {
   ssr: false,
@@ -64,6 +65,7 @@ export default function HomeView({
 
   const [showStickyBar, setShowStickyBar] = useState(false);
   const headerRef = useRef<HTMLDivElement>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
 
   const [allCities, setAllCities] = useState<{ city: string; state: string }[]>(
     [],
@@ -73,6 +75,16 @@ export default function HomeView({
     fetch("/api/services/cities")
       .then((r) => r.json())
       .then(setAllCities);
+  }, []);
+
+  const [allSupplies, setAllSupplies] = useState<
+    { id: string; name: string; category: string }[]
+  >([]);
+
+  useEffect(() => {
+    fetch("/api/supplies")
+      .then((r) => r.json())
+      .then(setAllSupplies);
   }, []);
 
   const { isDesktop } = useViewport();
@@ -150,11 +162,10 @@ export default function HomeView({
   const [mapServices, setMapServices] = useState<any[]>([]);
 
   useEffect(() => {
-    if (viewMode !== "map" && !isDesktop) return;
     fetch("/api/services/map")
       .then((r) => r.json())
       .then(setMapServices);
-  }, [viewMode, isDesktop]);
+  }, []);
 
   // Función central de fetch
   // Función central de fetch — ahora usa el objeto filters completo
@@ -314,51 +325,11 @@ export default function HomeView({
 
         {/* Buscador */}
         <div style={{ position: "relative", marginBottom: 12 }} ref={headerRef}>
-          <span
-            style={{
-              position: "absolute",
-              left: 12,
-              top: "50%",
-              transform: "translateY(-50%)",
-              fontSize: 16,
-            }}
-          >
-            🔍
-          </span>
-          <input
-            type="text"
-            placeholder='Buscar insumo... ej: "Pañales", "Insulina", "Gasolina 91"'
+          <SupplySearchInput
             value={supplySearch}
-            onChange={(e) => handleSupplySearch(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "10px 12px 10px 38px",
-              borderRadius: 10,
-              border: "1.5px solid #e5e7eb",
-              fontSize: 16,
-              fontFamily: "inherit",
-              boxSizing: "border-box",
-              background: "#f9fafb",
-            }}
+            onChange={handleSupplySearch}
+            supplies={allSupplies}
           />
-          {supplySearch && (
-            <button
-              onClick={() => handleSupplySearch("")}
-              style={{
-                position: "absolute",
-                right: 10,
-                top: "50%",
-                transform: "translateY(-50%)",
-                background: "none",
-                border: "none",
-                fontSize: 16,
-                cursor: "pointer",
-                color: "#9ca3af",
-              }}
-            >
-              ✕
-            </button>
-          )}
         </div>
 
         {/* Filtros */}
@@ -418,11 +389,20 @@ export default function HomeView({
 
         {/* Toggle vista */}
         {!isDesktop && (
-          <div style={{ display: "flex", borderTop: "1px solid #f0f0f0" }}>
+          <div
+            style={{ display: "flex", borderTop: "1px solid #f0f0f0" }}
+            ref={tabsRef}
+          >
             {(["list", "map"] as const).map((mode) => (
               <button
                 key={mode}
-                onClick={() => setViewMode(mode)}
+                onClick={() => {
+                  const offsetTop = tabsRef.current?.offsetTop
+                    ? tabsRef.current?.offsetTop - 60
+                    : 0;
+                  scroll({ top: offsetTop, behavior: "smooth" });
+                  setViewMode(mode);
+                }}
                 style={{
                   flex: 1,
                   padding: "10px 0",
@@ -454,7 +434,7 @@ export default function HomeView({
             background: "white",
             borderBottom: "1px solid #f0f0f0",
             boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-            padding: "8px 12px",
+            padding: "12px 12px",
             transform: showStickyBar ? "translateY(0)" : "translateY(-100%)",
             transition: "transform 0.25s ease",
             display: "flex",
@@ -462,55 +442,13 @@ export default function HomeView({
             alignItems: "center",
           }}
         >
-          {/* Buscador reducido */}
-          <div style={{ position: "relative", flex: 1 }}>
-            <span
-              style={{
-                position: "absolute",
-                left: 8,
-                top: "50%",
-                transform: "translateY(-50%)",
-                fontSize: 13,
-              }}
-            >
-              🔍{" "}
-            </span>
-
-            <input
-              type="text"
-              placeholder="Buscar insumo..."
-              value={supplySearch}
-              onChange={(e) => handleSupplySearch(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "7px 8px 7px 26px",
-                borderRadius: 8,
-                border: "1.5px solid #e5e7eb",
-                fontSize: 16,
-                fontFamily: "inherit",
-                boxSizing: "border-box",
-                background: "#f9fafb",
-              }}
-            />
-            {supplySearch && (
-              <button
-                onClick={() => handleSupplySearch("")}
-                style={{
-                  position: "absolute",
-                  right: 6,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  background: "none",
-                  border: "none",
-                  fontSize: 13,
-                  cursor: "pointer",
-                  color: "#9ca3af",
-                }}
-              >
-                ✕
-              </button>
-            )}
-          </div>
+          <SupplySearchInput
+            value={supplySearch}
+            onChange={handleSupplySearch}
+            supplies={allSupplies}
+            placeholder="Buscar insumo..."
+            compact
+          />
 
           {/* Botón filtros */}
           <button
@@ -588,10 +526,14 @@ export default function HomeView({
                   <p
                     style={{ fontSize: 15, fontWeight: 500, margin: "0 0 4px" }}
                   >
-                    Sin resultados
+                    {supplySearch
+                      ? "No hay reportes de locales con este insumo"
+                      : "Sin resultados"}
                   </p>
                   <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
-                    Prueba con otros filtros
+                    {supplySearch
+                      ? "Se el primero en agregar uno"
+                      : "Prueba con otros filtros"}
                   </p>
                 </div>
               ) : (
@@ -676,8 +618,25 @@ export default function HomeView({
       ) : (
         // Layout mobile
         <>
-          {viewMode === "list" ? (
-            <div style={{ padding: "8px 8px 0", overflowX: "hidden" }}>
+          {/* Lista — siempre montada, visible/oculta con CSS */}
+          <div style={{ position: "relative", height: "calc(100dvh - 200px)" }}>
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                visibility: viewMode === "list" ? "visible" : "hidden",
+                opacity: viewMode === "list" ? 1 : 0,
+                pointerEvents: viewMode === "list" ? "auto" : "none",
+                transition: "opacity 0.2s ease",
+                padding: "8px 8px 0",
+                overflowY: viewMode === "list" ? "unset" : "hidden",
+                background: "#f9fafb", // fondo para tapar el mapa
+                zIndex: viewMode === "list" ? 10 : 1,
+              }}
+            >
               <div style={{ textAlign: "center", padding: "4px 0" }}>
                 <button
                   onClick={() => setShowMissing(true)}
@@ -706,10 +665,18 @@ export default function HomeView({
                 {filters.city && ` en ${filters.city}`}
               </p>
 
+              {fetching && (
+                <div style={{ textAlign: "center", padding: "20px 0" }}>
+                  <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
+                    Buscando...
+                  </p>
+                </div>
+              )}
+
               <div
                 style={{ display: "flex", flexDirection: "column", gap: 12 }}
               >
-                {services.length === 0 ? (
+                {services.length === 0 && !fetching ? (
                   <div
                     style={{
                       textAlign: "center",
@@ -726,10 +693,14 @@ export default function HomeView({
                         margin: "0 0 4px",
                       }}
                     >
-                      Sin resultados
+                      {supplySearch
+                        ? "No hay reportes de locales con este insumo"
+                        : "Sin resultados"}
                     </p>
                     <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
-                      Prueba con otros filtros o términos de búsqueda
+                      {supplySearch
+                        ? "Se el primero en agregar uno"
+                        : "Prueba con otros filtros"}
                     </p>
                   </div>
                 ) : (
@@ -743,6 +714,7 @@ export default function HomeView({
                   ))
                 )}
               </div>
+
               {hasMore && (
                 <button
                   onClick={handleLoadMore}
@@ -766,30 +738,34 @@ export default function HomeView({
                     : `Ver más (${total - services.length} restantes)`}
                 </button>
               )}
-
-              {fetching && (
-                <div style={{ textAlign: "center", padding: "20px 0" }}>
-                  <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
-                    Buscando...
-                  </p>
-                </div>
-              )}
+              <Footer />
             </div>
-          ) : (
-            <div style={{ height: "calc(100dvh - 200px)" }}>
+
+            {/* Mapa — siempre montado, visible/oculto con CSS */}
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                visibility: viewMode === "map" ? "visible" : "hidden",
+                opacity: viewMode === "map" ? 1 : 0,
+                pointerEvents: viewMode === "map" ? "auto" : "none",
+                transition: "opacity 0.2s ease",
+                zIndex: viewMode === "map" ? 10 : 1,
+              }}
+            >
               <Map
                 ref={mapRef}
                 services={mapServices}
-                onRequestReport={(s) => {
-                  setReporting(s);
-                }}
+                onRequestReport={(s) => setReporting(s)}
                 activeCategories={
                   new Set(filters.category ? [filters.category] : [])
                 }
               />
             </div>
-          )}
-          <Footer />
+          </div>
         </>
       )}
 

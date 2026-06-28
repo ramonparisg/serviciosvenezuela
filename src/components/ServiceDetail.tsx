@@ -75,7 +75,10 @@ export default function ServiceDetail({
       return b.last_reported_at > a.last_reported_at ? 1 : -1;
     });
 
-  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${service.name} ${service.address} ${service.city}`)}`;
+  const googleMapsUrl =
+    service.lat && service.lng
+      ? `https://www.google.com/maps/search/?api=1&query=${service.lat},${service.lng}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${service.name} ${service.address} ${service.city}`)}`;
 
   return (
     <div

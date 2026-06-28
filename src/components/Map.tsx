@@ -101,8 +101,21 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
     requestPreciseLocation: requestLocation,
     geoStatus: locationStatus,
     ready,
+    coords,
+    isVenezuela,
   } = useLocation();
   const btn = LOCATION_BUTTON[locationStatus];
+
+  useEffect(() => {
+    if (ready) {
+      console.log("inside use effect", isVenezuela, coords, ready);
+      if (isVenezuela && !!coords) {
+        handleFlyToUser();
+      } else {
+        handleFlyToVenezuela();
+      }
+    }
+  }, [ready, coords, isVenezuela]);
 
   // ── Marker de usuario ──────────────────────────────────────────────────
   async function addUserMarker(lat: number, lng: number) {
@@ -130,6 +143,7 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
     if (!mapRef.current) return;
     requestLocation().then((location) => {
       if (!location) return;
+      console.log("location", location);
       mapRef.current?.flyTo([location.lat, location.lng], 14, {
         animate: true,
         duration: 1,
