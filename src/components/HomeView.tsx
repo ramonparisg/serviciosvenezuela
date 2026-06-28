@@ -14,8 +14,7 @@ import FiltersModal, {
   Filters,
 } from "@/components/FiltersModal";
 import FilterBar from "@/components/FilterBar";
-import { useLocationCheck } from "@/hooks/useLocationCheck";
-import OutsideVenezuelaWarning from "@/components/OutsideVenezuelaWarning";
+import { useLocation } from "@/hooks/useLocation";
 
 const Map = dynamic(() => import("./Map"), {
   ssr: false,
@@ -74,7 +73,17 @@ export default function HomeView({
   }, []);
 
   const { isDesktop } = useViewport();
-  const locationStatus = useLocationCheck();
+
+  const { geoStatus: locationStatus, requestPreciseLocation: requestLocation } =
+    useLocation();
+
+  async function handleMyLocation() {
+    const loc = await requestLocation();
+    if (!loc) return;
+
+    // Reordenar el listado por cercanía
+    await fetchServices({ lat: loc.lat, lng: loc.lng });
+  }
 
   const mapRef = useRef<MapHandle | null>(null);
 
@@ -142,6 +151,8 @@ export default function HomeView({
       supply?: string;
       page?: number;
       append?: boolean;
+      lat?: number;
+      lng?: number;
     } = {},
   ) {
     const isAppend = overrides.append ?? false;
@@ -159,6 +170,8 @@ export default function HomeView({
     if (activeFilters.name) q.set("name", activeFilters.name);
     if (activeFilters.address) q.set("address", activeFilters.address);
     if (activeFilters.recentOnly) q.set("recentOnly", "true");
+    if (overrides.lat) q.set("lat", String(overrides.lat));
+    if (overrides.lng) q.set("lng", String(overrides.lng));
     if (sup) q.set("supply", sup);
     q.set("page", String(p));
 
@@ -340,6 +353,8 @@ export default function HomeView({
           filters={filters}
           onRemove={handleRemoveFilter}
           onOpenFilters={() => setShowFilters(true)}
+          onMyLocation={handleMyLocation}
+          locationStatus={locationStatus}
         />
 
         {/* Disclaimer */}
@@ -413,12 +428,6 @@ export default function HomeView({
           </div>
         )}
       </div>
-
-      {locationStatus === "outside" && (
-        <div style={{ margin: "8px 8px" }}>
-          <OutsideVenezuelaWarning />
-        </div>
-      )}
 
       {/* Contenido */}
       {isDesktop ? (

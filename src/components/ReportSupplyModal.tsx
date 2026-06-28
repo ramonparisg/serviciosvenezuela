@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ServiceWithSupplies, Supply } from "@/types";
 import { categoryConfig } from "@/lib/category-config";
 import OutsideVenezuelaWarning from "@/components/OutsideVenezuelaWarning";
-import { useLocationCheck } from "@/hooks/useLocationCheck";
+import { useLocation } from "@/hooks/useLocation";
 
 interface ReportSupplyModalProps {
   service: ServiceWithSupplies;
@@ -34,8 +34,7 @@ export default function ReportSupplyModal({
   const [selections, setSelections] = useState<SupplySelection[]>([]);
   const [modalStatus, setModalStatus] = useState<ModalStatus>("idle");
 
-  const locationStatus = useLocationCheck();
-  // const locationStatus = "outside";
+  const { isVenezuela, isOutside } = useLocation();
 
   const config = categoryConfig[service.category];
 
@@ -293,19 +292,13 @@ export default function ReportSupplyModal({
                         <div style={{ display: "flex", gap: 6 }}>
                           <button
                             onClick={() => addSelection(supply, "available")}
-                            disabled={locationStatus === "outside"}
+                            disabled={isOutside}
                             style={{
                               padding: "5px 10px",
                               borderRadius: 8,
                               border: "none",
-                              background:
-                                locationStatus !== "outside"
-                                  ? "#dcfce7"
-                                  : "#e5e7eb",
-                              color:
-                                locationStatus !== "outside"
-                                  ? "#15803d"
-                                  : "#9ca3af",
+                              background: isVenezuela ? "#dcfce7" : "#e5e7eb",
+                              color: isVenezuela ? "#15803d" : "#9ca3af",
                               fontSize: 12,
                               fontWeight: 600,
                               cursor: "pointer",
@@ -316,19 +309,13 @@ export default function ReportSupplyModal({
                           </button>
                           <button
                             onClick={() => addSelection(supply, "unavailable")}
-                            disabled={locationStatus === "outside"}
+                            disabled={isOutside}
                             style={{
                               padding: "5px 10px",
                               borderRadius: 8,
                               border: "none",
-                              background:
-                                locationStatus !== "outside"
-                                  ? "#fee2e2"
-                                  : "#e5e7eb",
-                              color:
-                                locationStatus !== "outside"
-                                  ? "#991b1b"
-                                  : "#9ca3af",
+                              background: isVenezuela ? "#fee2e2" : "#e5e7eb",
+                              color: isVenezuela ? "#991b1b" : "#9ca3af",
                               fontSize: 12,
                               fontWeight: 600,
                               cursor: "pointer",
@@ -528,7 +515,7 @@ export default function ReportSupplyModal({
               </p>
             )}
 
-            {locationStatus === "outside" && (
+            {isOutside && (
               <div style={{ margin: "8px 0px" }}>
                 <OutsideVenezuelaWarning />
               </div>
@@ -538,7 +525,7 @@ export default function ReportSupplyModal({
               disabled={
                 selections.length === 0 ||
                 modalStatus === "loading" ||
-                locationStatus === "outside"
+                isOutside
               }
               style={{
                 width: "100%",

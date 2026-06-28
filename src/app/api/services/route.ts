@@ -16,6 +16,8 @@ export async function GET(req: NextRequest) {
   const name = params.get("name") || undefined;
   const address = params.get("address") || undefined;
   const recentOnly = params.get("recentOnly") === "true";
+  const lat = params.get("lat") ? parseFloat(params.get("lat")!) : undefined;
+  const lng = params.get("lng") ? parseFloat(params.get("lng")!) : undefined;
 
   const since = new Date(
     Date.now() - SINCE_DAYS * 24 * 60 * 60 * 1000,
@@ -43,15 +45,36 @@ export async function GET(req: NextRequest) {
 
       // ── Sin búsqueda de insumo → query paginada normal ──────────────────
     } else {
-      let query = supabase
-        .from("services_with_last_report")
-        .select(
-          "id, name, category, address, city, state, phone, notes, lat, lng, last_reported_at",
-          { count: "exact" },
-        )
-        .order("last_reported_at", { ascending: false, nullsFirst: false })
-        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+      let query: any;
 
+      // Inicialización condicional de la Query básica y su ordenamiento
+      if (lat && lng) {
+        // Si hay coordenadas, llamamos al RPC y ordenamos por la columna virtual 'distance'
+        query = supabase
+          .rpc(
+            "get_services_with_distance",
+            { user_lat: lat, user_lng: lng },
+            { count: "exact" },
+          )
+          .select(
+            "id, name, category, address, city, state, phone, notes, lat, lng, last_reported_at, distance",
+          )
+          .order("distance", { ascending: true });
+      } else {
+        // Si no hay coordenadas, consultamos la vista estándar ordenada por tiempo
+        query = supabase
+          .from("services_with_last_report")
+          .select(
+            "id, name, category, address, city, state, phone, notes, lat, lng, last_reported_at",
+            { count: "exact" },
+          )
+          .order("last_reported_at", { ascending: false, nullsFirst: false });
+      }
+
+      // Aplicamos la paginación
+      query = query.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+      // Filtros acumulativos idénticos para ambos casos
       if (category) query = query.eq("category", category);
       if (city) query = query.ilike("city", `%${city}%`);
       if (name) query = query.ilike("name", `%${name}%`);

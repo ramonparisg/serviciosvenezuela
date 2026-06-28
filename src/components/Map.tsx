@@ -9,31 +9,155 @@ import {
 } from "react";
 import type { Map as LeafletMap } from "leaflet";
 import { createIcon } from "@/lib/leaflet-icons";
+import { useLocation } from "@/hooks/useLocation";
 
 export interface MapHandle {
   flyTo: (lat: number, lng: number, zoom?: number) => void;
+  flyToUser: () => void;
 }
 
 interface MapProps {
   services: any[];
-  // Llamado cuando el usuario solicita abrir el modal de reporte desde el popup
   onRequestReport: (service: any) => void;
   activeCategories: Set<string>;
+  initLat?: number;
+  initLng?: number;
 }
 
+const LOCATION_BUTTON = {
+  idle: {
+    label: "Mi ubicación",
+    icon: "📍",
+    style: {
+      border: "1.5px solid #e5e7eb",
+      background: "white",
+      color: "#374151",
+    },
+  },
+  loading: {
+    label: "Buscando...",
+    icon: "⏳",
+    style: {
+      border: "1.5px solid #e5e7eb",
+      background: "white",
+      color: "#9ca3af",
+    },
+  },
+  granted: {
+    label: "Mi ubicación",
+    icon: "📍",
+    style: {
+      border: "1.5px solid #93c5fd",
+      background: "#eff6ff",
+      color: "#3b82f6",
+    },
+  },
+  denied: {
+    label: "Ubicación bloqueada",
+    icon: "🚫",
+    style: {
+      border: "1.5px solid #fca5a5",
+      background: "#fef2f2",
+      color: "#dc2626",
+    },
+  },
+  fallback: {
+    label: "Ubicación aproximada",
+    icon: "🧭",
+    style: {
+      border: "1.5px solid #fca5a5",
+      background: "#fefbf2",
+      color: "#dc8126",
+    },
+  },
+  unavailable: {
+    label: "No disponible",
+    icon: "📍",
+    style: {
+      border: "1.5px solid #e5e7eb",
+      background: "white",
+      color: "#9ca3af",
+    },
+  },
+};
+
 const Map = forwardRef<MapHandle, MapProps>(function Map(
-  { services, onRequestReport, activeCategories },
+  {
+    services,
+    onRequestReport,
+    activeCategories,
+    initLng = -66.9036,
+    initLat = 10.4806,
+  },
   ref,
 ) {
   const mapRef = useRef<LeafletMap | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [mapReady, setMapReady] = useState(false);
+  const { requestPreciseLocation: requestLocation, geoStatus: locationStatus } =
+    useLocation();
+
+  const btn = LOCATION_BUTTON[locationStatus];
+
+  const userMarkerRef = useRef<any>(null);
+
+  async function addUserMarker(lat: number, lng: number) {
+    const L = (await import("leaflet")).default;
+
+    if (userMarkerRef.current) {
+      userMarkerRef.current.remove();
+    }
+
+    const icon = L.divIcon({
+      className: "",
+      html: `
+      <div style="
+        width: 16px; height: 16px;
+        background: #3b82f6;
+        border: 3px solid white;
+        border-radius: 50%;
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.3);
+      "></div>
+    `,
+      iconSize: [16, 16],
+      iconAnchor: [8, 8],
+    });
+
+    userMarkerRef.current = L.marker([lat, lng], { icon }).addTo(
+      mapRef.current!,
+    );
+  }
+
+  // --- NUEVAS FUNCIONES AUXILIARES ---
+  const handleFlyToUser = () => {
+    console.log("Attempting to fly to user location");
+    if (!mapRef.current) return;
+    requestLocation().then((location) => {
+      if (!location) return;
+
+      mapRef.current?.flyTo([location.lat, location.lng], 14, {
+        animate: true,
+        duration: 1,
+      });
+      addUserMarker(location.lat, location.lng);
+    });
+  };
+
+  const handleFlyToVenezuela = () => {
+    if (!mapRef.current) return;
+    // Zoom 6 es ideal para ver todo el país. Puedes cambiarlo a 13 si prefieres enfocar en la ciudad inicial
+    mapRef.current.flyTo([initLat, initLng], 6, {
+      animate: true,
+      duration: 1,
+    });
+  };
 
   useImperativeHandle(ref, () => ({
     flyTo(lat: number, lng: number, zoom?: number) {
       const z = zoom ?? mapRef.current?.getZoom() ?? 16;
       mapRef.current?.flyTo([lat, lng], z, { animate: true, duration: 0.8 });
     },
+    flyToUser: handleFlyToUser,
   }));
 
   useEffect(() => {
@@ -45,7 +169,7 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
       if (!containerRef.current || mapRef.current) return;
 
       mapRef.current = L.map(containerRef.current, {
-        center: [10.4806, -66.9036],
+        center: [initLat, initLng],
         zoom: 13,
         zoomControl: false,
       });
@@ -64,9 +188,10 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
       mapRef.current = null;
       setMapReady(false);
     };
-  }, []);
+  }, [initLat, initLng]);
 
   useEffect(() => {
+    // ... (Tu código existente de loadMarkers se mantiene exactamente igual) ...
     if (!mapReady || !mapRef.current) return;
 
     const loadMarkers = async () => {
@@ -85,7 +210,6 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
           icon: createIcon(L, service.category),
         });
         marker.on("click", () => {
-          // Crear contenido resumido para el popup
           const container = document.createElement("div");
           container.style.minWidth = "200px";
           container.style.fontFamily = "system-ui, sans-serif";
@@ -102,7 +226,6 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
           info.style.marginBottom = "8px";
           info.textContent = service.address || service.city || "";
 
-          // Insumos: mostrar hasta 3 con estado, o texto "Sin reportes recientes"
           const suppliesContainer = document.createElement("div");
           suppliesContainer.style.display = "flex";
           suppliesContainer.style.flexDirection = "column";
@@ -167,7 +290,6 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
           detail.style.cursor = "pointer";
           detail.onclick = (e) => {
             e.stopPropagation();
-            // Abrir en nueva pestaña la página de detalle
             window.open(`/services/${service.id}`, "_blank");
           };
 
@@ -182,7 +304,6 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
           report.onclick = (e) => {
             e.stopPropagation();
             onRequestReport(service);
-            // cerrar cualquier popup abierto
             if (mapRef.current) mapRef.current.closePopup();
           };
 
@@ -191,7 +312,6 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
 
           container.appendChild(title);
           container.appendChild(info);
-          // insertar lista de insumos (o texto "Sin reportes recientes")
           container.appendChild(suppliesContainer);
           container.appendChild(actions);
 
@@ -212,11 +332,77 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
     loadMarkers();
   }, [services, activeCategories, onRequestReport, mapReady]);
 
+  // --- ESTRUCTURA ACTUALIZADA (Wrapper + Botones) ---
   return (
-    <div
-      ref={containerRef}
-      style={{ height: "100%", width: "100%", background: "#e8e0d8" }}
-    />
+    <div style={{ position: "relative", height: "100%", width: "100%" }}>
+      {/* Contenedor del Mapa */}
+      <div
+        ref={containerRef}
+        style={{ height: "100%", width: "100%", background: "#e8e0d8" }}
+      />
+
+      {/* Controles Flotantes */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: "24px",
+          right: "24px",
+          zIndex: 1000, // Debe ser >= 1000 para estar sobre Leaflet
+          display: "flex",
+          flexDirection: "column",
+          gap: "10px",
+        }}
+      >
+        <button
+          onClick={(e) => {
+            e.stopPropagation(); // Evita que Leaflet registre el clic en el mapa
+            handleFlyToUser();
+          }}
+          style={{
+            flexShrink: 0,
+            padding: "7px 12px",
+            borderRadius: 8,
+            fontSize: 13,
+            fontWeight: 500,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            fontFamily: "inherit",
+            cursor:
+              locationStatus === "loading" || locationStatus === "unavailable"
+                ? "not-allowed"
+                : "pointer",
+            whiteSpace: "nowrap" as const,
+            ...btn.style,
+            boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+          }}
+        >
+          {btn.icon} {btn.label}
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleFlyToVenezuela();
+          }}
+          style={{
+            background: "white",
+            border: "2px solid rgba(0,0,0,0.2)",
+            borderRadius: "8px",
+            padding: "8px 14px",
+            cursor: "pointer",
+            fontWeight: "600",
+            fontSize: "13px",
+            color: "#374151",
+            boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+          }}
+        >
+          🇻🇪 Ir a Venezuela
+        </button>
+      </div>
+    </div>
   );
 });
 
