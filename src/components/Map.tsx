@@ -65,7 +65,7 @@ const LOCATION_BUTTON = {
     label: "Ubicación aproximada",
     icon: "🧭",
     style: {
-      border: "1.5px solid #fca5a5",
+      border: "1.5px solid #fcd34d",
       background: "#fefbf2",
       color: "#dc8126",
     },
@@ -93,51 +93,43 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
 ) {
   const mapRef = useRef<LeafletMap | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const clusterRef = useRef<any>(null);
+  const userMarkerRef = useRef<any>(null);
   const [mapReady, setMapReady] = useState(false);
+
   const {
     requestPreciseLocation: requestLocation,
     geoStatus: locationStatus,
     ready,
   } = useLocation();
-
   const btn = LOCATION_BUTTON[locationStatus];
 
-  const userMarkerRef = useRef<any>(null);
-
+  // ── Marker de usuario ──────────────────────────────────────────────────
   async function addUserMarker(lat: number, lng: number) {
     const L = (await import("leaflet")).default;
+    if (userMarkerRef.current) userMarkerRef.current.remove();
 
-    if (userMarkerRef.current) {
-      userMarkerRef.current.remove();
-    }
-
-    const icon = L.divIcon({
-      className: "",
-      html: `
-      <div style="
-        width: 16px; height: 16px;
-        background: #3b82f6;
-        border: 3px solid white;
-        border-radius: 50%;
-        box-shadow: 0 0 0 3px rgba(59,130,246,0.3);
-      "></div>
-    `,
-      iconSize: [16, 16],
-      iconAnchor: [8, 8],
-    });
-
-    userMarkerRef.current = L.marker([lat, lng], { icon }).addTo(
-      mapRef.current!,
-    );
+    userMarkerRef.current = L.marker([lat, lng], {
+      icon: L.divIcon({
+        className: "",
+        html: `<div style="
+          width:16px;height:16px;
+          background:#3b82f6;
+          border:3px solid white;
+          border-radius:50%;
+          box-shadow:0 0 0 3px rgba(59,130,246,0.3);
+        "></div>`,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
+      }),
+    }).addTo(mapRef.current!);
   }
 
-  // --- NUEVAS FUNCIONES AUXILIARES ---
+  // ── Navegación ─────────────────────────────────────────────────────────
   const handleFlyToUser = () => {
-    console.log("Attempting to fly to user location");
     if (!mapRef.current) return;
     requestLocation().then((location) => {
       if (!location) return;
-
       mapRef.current?.flyTo([location.lat, location.lng], 14, {
         animate: true,
         duration: 1,
@@ -147,22 +139,24 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
   };
 
   const handleFlyToVenezuela = () => {
-    if (!mapRef.current) return;
-    // Zoom 6 es ideal para ver todo el país. Puedes cambiarlo a 13 si prefieres enfocar en la ciudad inicial
-    mapRef.current.flyTo([initLat, initLng], 6, {
+    mapRef.current?.flyTo([initLat, initLng], 6, {
       animate: true,
       duration: 1,
     });
   };
 
   useImperativeHandle(ref, () => ({
-    flyTo(lat: number, lng: number, zoom?: number) {
-      const z = zoom ?? mapRef.current?.getZoom() ?? 16;
-      mapRef.current?.flyTo([lat, lng], z, { animate: true, duration: 0.8 });
+    flyTo(lat, lng, zoom) {
+      mapRef.current?.flyTo(
+        [lat, lng],
+        zoom ?? mapRef.current?.getZoom() ?? 16,
+        { animate: true, duration: 0.8 },
+      );
     },
     flyToUser: handleFlyToUser,
   }));
 
+  // ── Inicializar mapa ───────────────────────────────────────────────────
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
@@ -193,14 +187,37 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
     };
   }, [initLat, initLng]);
 
+  // ── Markers con clustering ─────────────────────────────────────────────
   useEffect(() => {
-    // ... (Tu código existente de loadMarkers se mantiene exactamente igual) ...
     if (!mapReady || !mapRef.current) return;
 
     const loadMarkers = async () => {
       const L = (await import("leaflet")).default;
-      mapRef.current!.eachLayer((layer) => {
-        if (layer instanceof L.Marker) layer.remove();
+      await import("leaflet.markercluster");
+      await import("leaflet.markercluster/dist/MarkerCluster.css");
+      await import("leaflet.markercluster/dist/MarkerCluster.Default.css");
+
+      // Limpiar cluster anterior
+      if (clusterRef.current) {
+        mapRef.current!.removeLayer(clusterRef.current);
+        clusterRef.current = null;
+      }
+
+      const cluster = (L as any).markerClusterGroup({
+        maxClusterRadius: 60,
+        disableClusteringAtZoom: 16,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        chunkedLoading: true, // procesa en chunks — no bloquea el hilo en móvil
+      });
+
+      // Forzar spiderfy en clusters pequeños
+      cluster.on("clusterclick", (e: any) => {
+        if (e.layer.getChildCount() <= 8) {
+          e.layer.spiderfy();
+        } else {
+          e.layer.zoomToBounds({ padding: [20, 20] });
+        }
       });
 
       const filtered = services.filter(
@@ -209,88 +226,67 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
 
       filtered.forEach((service) => {
         if (!service.lat || !service.lng) return;
+
         const marker = L.marker([service.lat, service.lng], {
           icon: createIcon(L, service.category),
         });
+
         marker.on("click", () => {
+          // Popup
           const container = document.createElement("div");
-          container.style.minWidth = "200px";
-          container.style.fontFamily = "system-ui, sans-serif";
+          container.style.cssText =
+            "min-width:200px;font-family:system-ui,sans-serif";
 
           const title = document.createElement("div");
-          title.style.fontSize = "14px";
-          title.style.fontWeight = "600";
-          title.style.marginBottom = "6px";
-          title.textContent = `${service.name}`;
+          title.style.cssText =
+            "font-size:14px;font-weight:600;margin-bottom:6px";
+          title.textContent = service.name;
 
           const info = document.createElement("div");
-          info.style.fontSize = "13px";
-          info.style.color = "#6b7280";
-          info.style.marginBottom = "8px";
+          info.style.cssText = "font-size:13px;color:#6b7280;margin-bottom:8px";
           info.textContent = service.address || service.city || "";
 
-          const suppliesContainer = document.createElement("div");
-          suppliesContainer.style.display = "flex";
-          suppliesContainer.style.flexDirection = "column";
-          suppliesContainer.style.gap = "6px";
-          suppliesContainer.style.marginBottom = "8px";
+          const suppliesEl = document.createElement("div");
+          suppliesEl.style.cssText =
+            "display:flex;flex-direction:column;gap:6px;margin-bottom:8px";
 
           const supplies = Array.isArray(service.supplies)
             ? service.supplies
             : [];
           const reported = supplies.filter(
-            (sw: any) =>
-              sw.latest_status !== null && sw.latest_status !== undefined,
+            (sw: any) => sw.latest_status != null,
           );
 
           if (reported.length === 0) {
             const none = document.createElement("div");
-            none.style.fontSize = "13px";
-            none.style.color = "#9ca3af";
+            none.style.cssText = "font-size:13px;color:#9ca3af";
             none.textContent = "Sin reportes recientes";
-            suppliesContainer.appendChild(none);
+            suppliesEl.appendChild(none);
           } else {
-            const maxShow = 3;
-            reported.slice(0, maxShow).forEach((sw: any) => {
+            reported.slice(0, 3).forEach((sw: any) => {
               const row = document.createElement("div");
-              row.style.display = "flex";
-              row.style.alignItems = "center";
-              row.style.gap = "8px";
-
-              const dot = document.createElement("span");
-              dot.textContent = sw.latest_status === "available" ? "✅" : "❌";
-              dot.style.fontSize = "14px";
-
-              const name = document.createElement("span");
-              name.textContent = sw.supply?.name ?? "Insumo";
-              name.style.fontSize = "13px";
-              name.style.color = "#111827";
-
-              row.appendChild(dot);
-              row.appendChild(name);
-              suppliesContainer.appendChild(row);
+              row.style.cssText = "display:flex;align-items:center;gap:8px";
+              row.innerHTML = `
+                <span style="font-size:14px">${sw.latest_status === "available" ? "✅" : "❌"}</span>
+                <span style="font-size:13px;color:#111827">${sw.supply?.name ?? "Insumo"}</span>
+              `;
+              suppliesEl.appendChild(row);
             });
-
             if (reported.length > 3) {
               const more = document.createElement("div");
-              more.style.fontSize = "13px";
-              more.style.color = "#6b7280";
+              more.style.cssText = "font-size:13px;color:#6b7280";
               more.textContent = `+${reported.length - 3} insumos más`;
-              suppliesContainer.appendChild(more);
+              suppliesEl.appendChild(more);
             }
           }
 
           const actions = document.createElement("div");
-          actions.style.display = "flex";
-          actions.style.gap = "8px";
+          actions.style.cssText = "display:flex;gap:8px";
 
           const detail = document.createElement("button");
           detail.textContent = "Ver detalle";
-          detail.style.padding = "6px 8px";
-          detail.style.borderRadius = "8px";
-          detail.style.border = "1px solid #e5e7eb";
-          detail.style.background = "white";
-          detail.style.cursor = "pointer";
+          detail.style.cssText =
+            "padding:6px 8px;border-radius:8px;border:1px solid #e5e7eb;background:white;cursor:pointer";
           detail.onclick = (e) => {
             e.stopPropagation();
             window.open(`/services/${service.id}`, "_blank");
@@ -298,59 +294,56 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
 
           const report = document.createElement("button");
           report.textContent = "Reportar";
-          report.style.padding = "6px 8px";
-          report.style.borderRadius = "8px";
-          report.style.border = "none";
-          report.style.background = "#111827";
-          report.style.color = "white";
-          report.style.cursor = "pointer";
+          report.style.cssText =
+            "padding:6px 8px;border-radius:8px;border:none;background:#111827;color:white;cursor:pointer";
           report.onclick = (e) => {
             e.stopPropagation();
             onRequestReport(service);
-            if (mapRef.current) mapRef.current.closePopup();
+            mapRef.current?.closePopup();
           };
 
           actions.appendChild(detail);
           actions.appendChild(report);
-
           container.appendChild(title);
           container.appendChild(info);
-          container.appendChild(suppliesContainer);
+          container.appendChild(suppliesEl);
           container.appendChild(actions);
 
-          const popup = L.popup({ offset: [0, -10], closeButton: true });
-          popup.setLatLng([service.lat, service.lng]);
-          popup.setContent(container);
-          popup.openOn(mapRef.current!);
+          L.popup({ offset: [0, -10], closeButton: true })
+            .setLatLng([service.lat, service.lng])
+            .setContent(container)
+            .openOn(mapRef.current!);
 
           mapRef.current?.flyTo([service.lat, service.lng], 16, {
             animate: true,
             duration: 0.8,
           });
         });
-        marker.addTo(mapRef.current!);
+
+        cluster.addLayer(marker);
       });
+
+      clusterRef.current = cluster;
+      mapRef.current!.addLayer(cluster);
     };
 
     loadMarkers();
   }, [services, activeCategories, onRequestReport, mapReady]);
 
-  // --- ESTRUCTURA ACTUALIZADA (Wrapper + Botones) ---
+  // ── UI ─────────────────────────────────────────────────────────────────
   return (
     <div style={{ position: "relative", height: "100%", width: "100%" }}>
-      {/* Contenedor del Mapa */}
       <div
         ref={containerRef}
         style={{ height: "100%", width: "100%", background: "#e8e0d8" }}
       />
 
-      {/* Controles Flotantes */}
       <div
         style={{
           position: "absolute",
           bottom: "24px",
           right: "24px",
-          zIndex: 1000, // Debe ser >= 1000 para estar sobre Leaflet
+          zIndex: 1000,
           display: "flex",
           flexDirection: "column",
           gap: "10px",
@@ -359,9 +352,12 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
         {ready && (
           <button
             onClick={(e) => {
-              e.stopPropagation(); // Evita que Leaflet registre el clic en el mapa
+              e.stopPropagation();
               handleFlyToUser();
             }}
+            disabled={
+              locationStatus === "loading" || locationStatus === "unavailable"
+            }
             style={{
               flexShrink: 0,
               padding: "7px 12px",
@@ -372,13 +368,13 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
               alignItems: "center",
               gap: 6,
               fontFamily: "inherit",
+              whiteSpace: "nowrap",
               cursor:
                 locationStatus === "loading" || locationStatus === "unavailable"
                   ? "not-allowed"
                   : "pointer",
-              whiteSpace: "nowrap" as const,
-              ...btn.style,
               boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+              ...btn.style,
             }}
           >
             {btn.icon} {btn.label}
