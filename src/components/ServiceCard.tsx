@@ -2,6 +2,8 @@
 
 import { ServiceWithSupplies } from "@/types";
 import { categoryConfig } from "@/lib/category-config";
+import { useState } from "react";
+import ReportServiceModal from "@/components/ReportServiceModal";
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -26,6 +28,8 @@ export default function ServiceCard({
 }: ServiceCardProps) {
   const config = categoryConfig[service.category];
   const hasSupplies = service.supplies.length > 0;
+  // Estado
+  const [reporting, setReporting] = useState(false);
 
   return (
     <div
@@ -38,34 +42,42 @@ export default function ServiceCard({
       }}
     >
       {/* Header */}
-      <div style={{ marginBottom: 10 }}>
-        <p
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: config.color,
-            margin: "0 0 2px",
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-          }}
-        >
-          {config.emoji} {config.label}
-        </p>
-        <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 2px" }}>
-          {service.name}
-        </h3>
-        <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
-          {service.address && `${service.address}, `}
-          {service.city}
-        </p>
-        {service.phone && (
-          <a
-            href={`tel:${service.phone}`}
-            style={{ fontSize: 13, color: "#3b82f6", textDecoration: "none" }}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginBottom: 10,
+        }}
+      >
+        <div style={{ marginBottom: 10 }}>
+          <p
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: config.color,
+              margin: "0 0 2px",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+            }}
           >
-            📞 {service.phone}
-          </a>
-        )}
+            {config.emoji} {config.label}
+          </p>
+          <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 2px" }}>
+            {service.name}
+          </h3>
+          <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
+            {service.address && `${service.address}, `}
+            {service.city}
+          </p>
+          {service.phone && (
+            <a
+              href={`tel:${service.phone}`}
+              style={{ fontSize: 13, color: "#3b82f6", textDecoration: "none" }}
+            >
+              📞 {service.phone}
+            </a>
+          )}
+        </div>
       </div>
 
       {/* Insumos */}
@@ -221,6 +233,31 @@ export default function ServiceCard({
           📋 Reportar
         </button>
       </div>
+      <div style={{ marginTop: 12, textAlign: "center" }}>
+        <button
+          onClick={() => setReporting(true)}
+          style={{
+            background: "none",
+            border: "none",
+            fontSize: 12,
+            color: "#9ca3af",
+            cursor: "pointer",
+            textDecoration: "underline",
+            padding: "4px 0",
+            fontFamily: "inherit",
+            width: "100%",
+            textAlign: "center",
+          }}
+        >
+          ⚠️ Informar problema
+        </button>
+      </div>
+      {reporting && (
+        <ReportServiceModal
+          service={{ id: service.id, name: service.name }}
+          onClose={() => setReporting(false)}
+        />
+      )}
     </div>
   );
 }

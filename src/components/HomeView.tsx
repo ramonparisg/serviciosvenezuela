@@ -449,8 +449,8 @@ export default function HomeView({
               lineHeight: 1.5,
             }}
           >
-            ⚠️ El listado de locales fue extraído de datos públicos. Podría
-            haber errores o inexactitudes.
+            ⚠️ Listado de locales basado en datos públicos. Si detectas algún
+            error o inexactitud, por favor infórmanos.
           </p>
         </div>
 
@@ -618,7 +618,7 @@ export default function HomeView({
         // Layout mobile
         <>
           {viewMode === "list" ? (
-            <div style={{ padding: "8px 16px 0", overflowX: "hidden" }}>
+            <div style={{ padding: "8px 8px 0", overflowX: "hidden" }}>
               <div style={{ textAlign: "center", padding: "4px 0" }}>
                 <button
                   onClick={() => setShowMissing(true)}

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { categoryConfig } from "@/lib/category-config";
 import { Category } from "@/types";
 import ReportSupplyModal from "./ReportSupplyModal";
+import ReportServiceModal from "@/components/ReportServiceModal";
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -26,6 +27,7 @@ export default function ServiceDetail({
   const router = useRouter();
   const [reporting, setReporting] = useState(false);
   const config = categoryConfig[service.category as Category];
+  const [reportingService, setReportingService] = useState(false);
 
   // Agrupar reportes por insumo
   const supplyMap = new Map<
@@ -173,7 +175,6 @@ export default function ServiceDetail({
             🗺 Cómo llegar
           </a>
         </div>
-
         {/* Notas del local */}
         {service.notes && (
           <div
@@ -190,7 +191,6 @@ export default function ServiceDetail({
             </p>
           </div>
         )}
-
         {/* Insumos */}
         <div
           style={{
@@ -279,7 +279,6 @@ export default function ServiceDetail({
             })
           )}
         </div>
-
         {/* Botón reportar */}
         <button
           onClick={() => setReporting(true)}
@@ -298,7 +297,33 @@ export default function ServiceDetail({
         >
           📋 Reportar insumo
         </button>
+        <div style={{ marginTop: 12, textAlign: "center" }}>
+          <button
+            onClick={() => setReportingService(true)}
+            style={{
+              background: "none",
+              border: "none",
+              fontSize: 12,
+              color: "#9ca3af",
+              cursor: "pointer",
+              textDecoration: "underline",
+              padding: "4px 0",
+              fontFamily: "inherit",
+              width: "100%",
+              textAlign: "center",
+            }}
+          >
+            ⚠️ Informar problema
+          </button>
+        </div>
       </div>
+
+      {reportingService && (
+        <ReportServiceModal
+          service={{ id: service.id, name: service.name }}
+          onClose={() => setReportingService(false)}
+        />
+      )}
 
       {reporting && (
         <ReportSupplyModal
