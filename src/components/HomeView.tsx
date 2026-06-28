@@ -11,6 +11,11 @@ import MissingServiceModal from "./MissingServiceModal";
 import CityFilter from "./CityFilter";
 import { MapHandle } from "@/components/Map";
 import { useViewport } from "@/hooks/useViewport";
+import FiltersModal, {
+  EMPTY_FILTERS,
+  Filters,
+} from "@/components/FiltersModal";
+import FilterBar from "@/components/FilterBar";
 
 const Map = dynamic(() => import("./Map"), {
   ssr: false,
@@ -57,6 +62,18 @@ export default function HomeView({
   const [supplySearch, setSupplySearch] = useState("");
   const [reporting, setReporting] = useState<ServiceWithSupplies | null>(null);
   const [showMissing, setShowMissing] = useState(false);
+  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [showFilters, setShowFilters] = useState(false);
+
+  const [allCities, setAllCities] = useState<{ city: string; state: string }[]>(
+    [],
+  );
+
+  useEffect(() => {
+    fetch("/api/services/cities")
+      .then((r) => r.json())
+      .then(setAllCities);
+  }, []);
 
   const { isDesktop } = useViewport();
 
@@ -116,11 +133,12 @@ export default function HomeView({
       .then((r) => r.json())
       .then(setMapServices);
   }, [viewMode, isDesktop]);
+
   // Función central de fetch
+  // Función central de fetch — ahora usa el objeto filters completo
   async function fetchServices(
     overrides: {
-      category?: string;
-      city?: string;
+      filters?: Filters;
       supply?: string;
       page?: number;
       append?: boolean;
@@ -130,14 +148,17 @@ export default function HomeView({
     if (isAppend) setLoadingMore(true);
     else setFetching(true);
 
-    const p = overrides.page ?? 0;
-    const q = new URLSearchParams();
-    const cat = overrides.category ?? categoryFilter;
-    const cty = overrides.city ?? cityFilter;
+    const activeFilters = overrides.filters ?? filters;
     const sup = overrides.supply ?? supplySearch;
+    const p = overrides.page ?? 0;
 
-    if (cat) q.set("category", cat);
-    if (cty) q.set("city", cty);
+    const q = new URLSearchParams();
+    if (activeFilters.category) q.set("category", activeFilters.category);
+    if (activeFilters.city) q.set("city", activeFilters.city);
+    if (activeFilters.state) q.set("state", activeFilters.state);
+    if (activeFilters.name) q.set("name", activeFilters.name);
+    if (activeFilters.address) q.set("address", activeFilters.address);
+    if (activeFilters.recentOnly) q.set("recentOnly", "true");
     if (sup) q.set("supply", sup);
     q.set("page", String(p));
 
@@ -159,15 +180,18 @@ export default function HomeView({
     }
   }
 
-  // Handlers que actualizan estado Y fetchean
-  function handleCategoryChange(cat: string) {
-    setCategoryFilter(cat);
-    fetchServices({ category: cat });
+  function handleApplyFilters(newFilters: Filters) {
+    setFilters(newFilters);
+    fetchServices({ filters: newFilters });
   }
 
-  function handleCityChange(city: string) {
-    setCityFilter(city);
-    fetchServices({ city });
+  function handleRemoveFilter(key: keyof Filters) {
+    const newFilters = {
+      ...filters,
+      [key]: key === "recentOnly" ? false : "",
+    };
+    setFilters(newFilters);
+    fetchServices({ filters: newFilters });
   }
 
   function handleSupplySearch(value: string) {
@@ -332,81 +356,11 @@ export default function HomeView({
         </div>
 
         {/* Filtros */}
-        <div
-          style={{
-            display: "flex",
-            gap: 8,
-            marginBottom: 12,
-            alignItems: "center",
-            width: "100%",
-            maxWidth: "100%",
-            boxSizing: "border-box",
-          }}
-        >
-          {/* Filtro ciudad */}
-          <CityFilter
-            services={services}
-            value={cityFilter}
-            onChange={handleCityChange}
-          />
-
-          {/* Sub-contenedor de categorías */}
-          <div
-            style={{
-              display: "flex",
-              gap: 8,
-              overflowX: "auto",
-              scrollbarWidth: "none",
-              alignItems: "center",
-              flex: "1 1 0%",
-              width: 0,
-              minWidth: 0,
-            }}
-          >
-            {/* Filtros categoría */}
-            {isDesktop && (
-              <p
-                style={{
-                  fontSize: 13,
-                  color: "#6b7280",
-                  margin: 0,
-                  lineHeight: 1.5,
-                  borderLeft: "1px solid #e5e7eb",
-                  alignSelf: "center",
-                  paddingLeft: 8,
-                  whiteSpace: "nowrap", // Evita que el texto se rompa en dos líneas
-                }}
-              >
-                Filtros por categoría:
-              </p>
-            )}
-
-            {(Object.keys(categoryConfig) as Category[]).map((cat) => {
-              const isActive = categoryFilter === cat;
-              const { emoji, color } = categoryConfig[cat];
-              return (
-                <button
-                  key={cat}
-                  onClick={() => handleCategoryChange(isActive ? "" : cat)}
-                  style={{
-                    flexShrink: 0,
-                    padding: "7px 12px",
-                    borderRadius: 8,
-                    border: `1.5px solid ${isActive ? color : "#e5e7eb"}`,
-                    background: isActive ? color : "white",
-                    color: isActive ? "white" : "#374151",
-                    fontSize: 13,
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {emoji}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <FilterBar
+          filters={filters}
+          onRemove={handleRemoveFilter}
+          onOpenFilters={() => setShowFilters(true)}
+        />
 
         {/* Disclaimer */}
         <div
@@ -456,18 +410,18 @@ export default function HomeView({
 
         {/* Toggle vista */}
         {!isDesktop && (
-          <div style={{ display: "flex", marginBottom: -1 }}>
+          <div style={{ display: "flex", borderTop: "1px solid #f0f0f0" }}>
             {(["list", "map"] as const).map((mode) => (
               <button
                 key={mode}
-                onClick={() => handleChangeViewMode(mode)}
+                onClick={() => setViewMode(mode)}
                 style={{
                   flex: 1,
                   padding: "10px 0",
                   background: "none",
                   border: "none",
                   borderBottom: `2px solid ${viewMode === mode ? "#111827" : "transparent"}`,
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: viewMode === mode ? 600 : 400,
                   color: viewMode === mode ? "#111827" : "#9ca3af",
                   cursor: "pointer",
@@ -746,6 +700,15 @@ export default function HomeView({
 
       {showMissing && (
         <MissingServiceModal onClose={() => setShowMissing(false)} />
+      )}
+
+      {showFilters && (
+        <FiltersModal
+          current={filters}
+          services={allCities} // ← ver nota abajo
+          onApply={handleApplyFilters}
+          onClose={() => setShowFilters(false)}
+        />
       )}
     </div>
   );

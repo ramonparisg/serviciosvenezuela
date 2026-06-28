@@ -13,6 +13,9 @@ export async function GET(req: NextRequest) {
   const city = params.get("city") || undefined;
   const supply = params.get("supply") || undefined;
   const page = parseInt(params.get("page") ?? "0");
+  const name = params.get("name") || undefined;
+  const address = params.get("address") || undefined;
+  const recentOnly = params.get("recentOnly") === "true";
 
   const since = new Date(
     Date.now() - SINCE_DAYS * 24 * 60 * 60 * 1000,
@@ -51,6 +54,9 @@ export async function GET(req: NextRequest) {
 
       if (category) query = query.eq("category", category);
       if (city) query = query.ilike("city", `%${city}%`);
+      if (name) query = query.ilike("name", `%${name}%`);
+      if (address) query = query.ilike("address", `%${address}%`);
+      if (recentOnly) query = query.not("last_reported_at", "is", null);
 
       const { data, error, count } = await query;
       if (error) throw error;
